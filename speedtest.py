@@ -31,7 +31,7 @@ def swift_transformer():
         model=model_path,
         tensor_parallel_size=1,
         pipeline_parallel_size=4,
-        pipeline_distribution=[6,6,6,6],
+        pipeline_distribution=[10,10,2,2],
         gpu_memory_utilization=0.01
     )
     outputs = llm.generate(prompts=prompts, sampling_params=sampling_params)
