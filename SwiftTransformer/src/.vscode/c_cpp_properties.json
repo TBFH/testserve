@@ -1,0 +1,18 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/home/austin/miniconda3/envs/fastserve/include/python3.12",
+                "/home/austin/miniconda3/envs/fastserve/lib/python3.12/site-packages/torch/include",
+                "/home/austin/miniconda3/envs/fastserve/lib/python3.12/site-packages/torch/include/torch/csrc/api/include"
+            ],
+            "defines": [],
+            "cStandard": "c17",
+            "cppStandard": "c++14",
+            "compileCommands": []
+        }
+    ],
+    "version": 4
+}
