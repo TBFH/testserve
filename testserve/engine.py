@@ -151,11 +151,11 @@ class LLMEngine:
         for idx, (node_id, future) in enumerate(futures):
             result = ray.get(future)
             self.node_resources[node_id] = result
-            outlog = ""
-            outlog += f"[Worker{idx}] NodeID: {node_id}\n"
-            outlog += f"[Worker{idx}] GPU Device {0}: {result["GPU_Name"]}\n"
-            outlog += f"[Worker{idx}] Used/Total VRAM: {result["Used_VRAM"]/1024:.1f}/{result["Total_VRAM"]/1024:.1f} GB ({(result["Used_VRAM"]/result["Total_VRAM"])*100:.1f}%)\n"
-            outlog += f"[Worker{idx}] Free VRAM: {result["Free_VRAM"]/1024:.1f} GB\n"
+            outlog = ''
+            outlog += f'[Worker{idx}] NodeID: {node_id}\n'
+            outlog += f'[Worker{idx}] GPU Device {0}: {result["GPU_Name"]}\n'
+            outlog += f'[Worker{idx}] Used/Total VRAM: {result["Used_VRAM"]/1024:.1f}/{result["Total_VRAM"]/1024:.1f} GB ({(result["Used_VRAM"]/result["Total_VRAM"])*100:.1f}%)\n'
+            outlog += f'[Worker{idx}] Free VRAM: {result["Free_VRAM"]/1024:.1f} GB\n'
             print(outlog)
     
     def _gpu_usage_summary(self):
@@ -173,7 +173,7 @@ class LLMEngine:
         for node_id, future in (futures):
             result = ray.get(future)
             allocated_vram = self.node_resources[node_id]["Free_VRAM"] - result["Free_VRAM"]
-            print(f"[{node_id}] GPU Device {self.node_resources[node_id]["GPU_Name"]} Allocated VRAM: {allocated_vram} MiB")
+            print(f'[{node_id}] GPU Device {self.node_resources[node_id]["GPU_Name"]} Allocated VRAM: {allocated_vram} MiB')
 
     def _init_placement_groups(self):
         if not ray.is_initialized():
