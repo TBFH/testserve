@@ -113,7 +113,6 @@ class LLMEngine:
 
         # initialization
         self._init_placement_groups()
-        self._init_inspect()
         self._init_workers()
         self._init_model()
         self.num_gpu_blocks, self.num_cpu_blocks = self._init_kvcache()
@@ -158,19 +157,11 @@ class LLMEngine:
             print(outlog)
     
     def _gpu_usage_summary(self):
-        nodes = ray.nodes()
-        futures = []
-        for i, node in enumerate(nodes):
-            node_id = node['NodeID']
-            future = resource_inspect.options(
-                scheduling_strategy=NodeAffinitySchedulingStrategy(
-                    node_id=node_id, soft=False
-                )
-            ).remote()
-            futures.append((node_id, future))
+        futures = self.remote_call_all_workers_async("resource_inspect")
         # Save & Print out Inspects Data
-        for node_id, future in (futures):
+        for future in (futures):
             result = ray.get(future)
+            node_id = result["NodeID"]
             allocated_vram = self.node_resources[node_id]["Free_VRAM"] - result["Free_VRAM"]
             print(f'[{node_id}] GPU Device {self.node_resources[node_id]["GPU_Name"]} Allocated VRAM: {allocated_vram} MiB')
 
@@ -180,6 +171,7 @@ class LLMEngine:
                 # include_dashboard=False
                 address="ray://219.222.20.79:32261"
             )
+        self._init_inspect()
         num_cluster_gpus = ray.cluster_resources().get("GPU", 0)
         if (
             num_cluster_gpus

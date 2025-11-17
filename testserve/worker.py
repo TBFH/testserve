@@ -136,6 +136,26 @@ class ParaWorker:
         # gpu_inspect(self.parallel_config.pipeline_parallel_rank)
         pass
 
+    def resource_inspect(self):
+        node_id = ray.get_runtime_context().get_node_id()
+        # GPU Overall Inspect
+        import pycuda.driver as cuda
+        cuda.init()
+        device = cuda.Device(0)
+        device_name = device.name()
+        context = device.make_context()
+        total_memory = device.total_memory() / (1024 ** 2)
+        free_memory = cuda.mem_get_info()[0] / (1024 ** 2)
+        used_memory = total_memory - free_memory
+        context.pop()
+        return {
+            "GPU_Name": device_name,
+            "Total_VRAM": total_memory,
+            "Used_VRAM": used_memory,
+            "Free_VRAM": free_memory,
+            "NodeID": node_id
+        }
+
     def init_model(self):
         # Initialize the model.
         set_random_seed(self.model_config.seed)
