@@ -40,7 +40,7 @@ def resource_inspect():
     device_name = device.name()
     context = device.make_context()
     import time
-    time.sleep(5)
+    time.sleep(3)
     total_memory = device.total_memory() / (1024 ** 2)
     free_memory = cuda.mem_get_info()[0] / (1024 ** 2)
     used_memory = total_memory - free_memory
