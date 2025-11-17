@@ -31,6 +31,24 @@ from testserve.block_manager import BlockManager
 
 logger = init_logger(__name__)
 
+@ray.remote(num_gpus=1)
+def resource_inspect():
+    # GPU Overall Inspect
+    import pycuda.driver as cuda
+    cuda.init()
+    device = cuda.Device(0)
+    device_name = device.name()
+    context = device.make_context()
+    total_memory = device.total_memory() / (1024 ** 2)
+    free_memory = cuda.mem_get_info()[0] / (1024 ** 2)
+    used_memory = total_memory - free_memory
+    context.pop()
+    return {
+        "GPU_Name": device_name,
+        "Total_VRAM": total_memory,
+        "Used_VRAM": used_memory,
+        "Free_VRAM": free_memory,
+    }
 
 class StepOutput:
     """The output of request in one step of inference.
@@ -117,31 +135,12 @@ class LLMEngine:
         logger.info(self.scheduler)
         logger.info(f"{self.block_manager}")
 
-    @ray.remote(num_gpus=1)
-    def _resource_inspect(self):
-        # GPU Overall Inspect
-        import pycuda.driver as cuda
-        cuda.init()
-        device = cuda.Device(0)
-        device_name = device.name()
-        context = device.make_context()
-        total_memory = device.total_memory() / (1024 ** 2)
-        free_memory = cuda.mem_get_info()[0] / (1024 ** 2)
-        used_memory = total_memory - free_memory
-        context.pop()
-        return {
-            "GPU_Name": device_name,
-            "Total_VRAM": total_memory,
-            "Used_VRAM": used_memory,
-            "Free_VRAM": free_memory,
-        }
-
     def _init_inspect(self):
         nodes = ray.nodes()
         futures = []
         for i, node in enumerate(nodes):
             node_id = node['NodeID']
-            future = self._resource_inspect.options(
+            future = resource_inspect.options(
                 scheduling_strategy=NodeAffinitySchedulingStrategy(
                     node_id=node_id, soft=False
                 )
@@ -163,7 +162,7 @@ class LLMEngine:
         futures = []
         for i, node in enumerate(nodes):
             node_id = node['NodeID']
-            future = self._resource_inspect.options(
+            future = resource_inspect.options(
                 scheduling_strategy=NodeAffinitySchedulingStrategy(
                     node_id=node_id, soft=False
                 )
