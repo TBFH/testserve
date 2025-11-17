@@ -137,13 +137,6 @@ class ParaWorker:
         pass
 
     def resource_inspect(self):
-        allocated_memory = torch.cuda.memory_allocated(0) / (1024 ** 2)
-        reserved_memory = torch.cuda.memory_reserved(0) / (1024 ** 2)
-        outlog = ""
-        outlog += f"[Rank{self.parallel_config.pipeline_parallel_rank}] Allocated Memory: {allocated_memory:.2f} MiB\n"
-        outlog += f"[Rank{self.parallel_config.pipeline_parallel_rank}] Reserved Memory: {reserved_memory:.2f} MiB\n"
-        print(outlog)
-
         node_id = ray.get_runtime_context().get_node_id()
         # GPU Overall Inspect
         import pycuda.driver as cuda
