@@ -153,7 +153,9 @@ class ParaWorker:
             "Total_VRAM": total_memory,
             "Used_VRAM": used_memory,
             "Free_VRAM": free_memory,
-            "NodeID": node_id
+            "NodeID": node_id,
+            "Rank": self.parallel_config.pipeline_parallel_rank,
+            "Num_Layers": self.parallel_config.pipeline_distribution[self.parallel_config.pipeline_parallel_rank]
         }
 
     def init_model(self):
