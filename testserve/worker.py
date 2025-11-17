@@ -19,31 +19,32 @@ from testserve.downloader import download_and_convert_weights
 
 logger = init_logger(__name__)
 
-def gpu_inspect(rank):
-    # Actor&Node Affiliation
-    node_id = ray.get_runtime_context().node_id.hex()
-    print(f"[Rank{rank}] Deployed at Node: {node_id}")
+# def gpu_inspect(rank):
+#     outlog = ""
+#     # Actor&Node Affiliation
+#     node_id = ray.get_runtime_context().get_node_id()
+#     outlog += f"[Rank{rank}] Deployed at Node: {node_id}\n"
+#     # GPU Overall Inspect
+#     import pycuda.driver as cuda
+#     cuda.init()
+#     device = cuda.Device(0)
+#     outlog += f"[Rank{rank}] GPU Device {0}: {device.name()}\n"
+#     context = device.make_context()
+#     total_memory = device.total_memory() / (1024 ** 3)
+#     free_memory = cuda.mem_get_info()[0] / (1024 ** 3)
+#     used_memory = total_memory - free_memory
+#     outlog += f"[Rank{rank}] Used/Total VRAM: {used_memory:.1f}/{total_memory:.1f} GB ({(used_memory/total_memory)*100:.1f}%)\n"
+#     # outlog += f"[Rank{rank}] Used VRAM: {used_memory:.1f} MiB\n"
+#     outlog += f"[Rank{rank}] Free VRAM: {free_memory:.1f} GB\n"
+#     context.pop()
+#     print(outlog)
+#     # Program GPU Utilization
+#     # total_memory = torch.cuda.get_device_properties(0).total_memory / (1024 ** 2)
+#     # allocated_memory = torch.cuda.memory_allocated(0) / (1024 ** 2)
+#     # reserved_memory = torch.cuda.memory_reserved(0) / (1024 ** 2)
+#     # outlog += f"[Rank{rank}] Allocated Memory: {allocated_memory:.2f} MiB\n"
+#     # outlog += f"[Rank{rank}] Reserved Memory: {reserved_memory:.2f} MiB\n"
 
-    # GPU Overall Inspect
-    import pycuda.driver as cuda
-    cuda.init()
-    device = cuda.Device(0)
-    print("[Rank{}] GPU Device {}: {}".format(rank, 0, device.name()))
-    context = device.make_context()
-    total_memory = device.total_memory() / (1024 ** 2)
-    free_memory = cuda.mem_get_info()[0] / (1024 ** 2)
-    used_memory = total_memory - free_memory
-    print("[Rank{}] Total VRAM: {:.2f} MiB".format(rank, total_memory))
-    print("[Rank{}] Used VRAM: {:.2f} MiB".format(rank, used_memory))
-    print("[Rank{}] Free VRAM: {:.2f} MiB".format(rank, free_memory))
-    context.pop()
-
-    # Program GPU Utilization
-    # total_memory = torch.cuda.get_device_properties(0).total_memory / (1024 ** 2)
-    allocated_memory = torch.cuda.memory_allocated(0) / (1024 ** 2)
-    reserved_memory = torch.cuda.memory_reserved(0) / (1024 ** 2)
-    print(f"[Rank{rank}] Allocated Memory: {allocated_memory:.2f} MiB")
-    print(f"[Rank{rank}] Reserved Memory: {reserved_memory:.2f} MiB")
 
 
 # If we call `torch.ops.swapping_ops.swap` in `ParaWorker.swap_blocks()` directly,
@@ -132,7 +133,7 @@ class ParaWorker:
         Ray functions queue inside one single actor to be executed in order.
         If ready is called, the actor is ready.
         """
-        gpu_inspect(self.parallel_config.pipeline_parallel_rank)
+        # gpu_inspect(self.parallel_config.pipeline_parallel_rank)
         pass
 
     def init_model(self):

@@ -5,7 +5,7 @@ import asyncio
 
 import ray
 # from fastserve.ray_utils import ClusterMonitor, check_cluster_status
-from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
+from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy, NodeAffinitySchedulingStrategy
 import torch
 
 from testserve.config import ModelConfig, ParallelConfig, CacheConfig, SchedConfig
@@ -91,12 +91,15 @@ class LLMEngine:
         # Note: len(batched_in_pipeline) <= pp_size and batches are appended in FIFO
         self.batches_in_pipeline = []
         self.batches_ret_futures = []
+        self.node_resources = {}
 
         # initialization
+        self._init_inspect()
         self._init_placement_groups()
         self._init_workers()
         self._init_model()
         self.num_gpu_blocks, self.num_cpu_blocks = self._init_kvcache()
+        self._gpu_usage_summary()
 
         self.block_manager = BlockManager(
             self.num_gpu_blocks,
@@ -113,6 +116,64 @@ class LLMEngine:
         )
         logger.info(self.scheduler)
         logger.info(f"{self.block_manager}")
+
+    @ray.remote(num_gpus=1)
+    def _resource_inspect(self):
+        # GPU Overall Inspect
+        import pycuda.driver as cuda
+        cuda.init()
+        device = cuda.Device(0)
+        device_name = device.name()
+        context = device.make_context()
+        total_memory = device.total_memory() / (1024 ** 2)
+        free_memory = cuda.mem_get_info()[0] / (1024 ** 2)
+        used_memory = total_memory - free_memory
+        context.pop()
+        return {
+            "GPU_Name": device_name,
+            "Total_VRAM": total_memory,
+            "Used_VRAM": used_memory,
+            "Free_VRAM": free_memory,
+        }
+
+    def _init_inspect(self):
+        nodes = ray.nodes()
+        futures = []
+        for i, node in enumerate(nodes):
+            node_id = node['NodeID']
+            future = self._resource_inspect.options(
+                scheduling_strategy=NodeAffinitySchedulingStrategy(
+                    node_id=node_id, soft=False
+                )
+            ).remote()
+            futures.append((node_id, future))
+        # Save & Print out Inspects Data
+        for idx, (node_id, future) in enumerate(futures):
+            result = ray.get(future)
+            self.node_resources[node_id] = result
+            outlog = ""
+            outlog += f"[Worker{idx}] NodeID: {node_id}\n"
+            outlog += f"[Worker{idx}] GPU Device {0}: {result["GPU_Name"]}\n"
+            outlog += f"[Worker{idx}] Used/Total VRAM: {result["Used_VRAM"]/1024:.1f}/{result["Total_VRAM"]/1024:.1f} GB ({(result["Used_VRAM"]/result["Total_VRAM"])*100:.1f}%)\n"
+            outlog += f"[Worker{idx}] Free VRAM: {result["Free_VRAM"]/1024:.1f} GB\n"
+            print(outlog)
+    
+    def _gpu_usage_summary(self):
+        nodes = ray.nodes()
+        futures = []
+        for i, node in enumerate(nodes):
+            node_id = node['NodeID']
+            future = self._resource_inspect.options(
+                scheduling_strategy=NodeAffinitySchedulingStrategy(
+                    node_id=node_id, soft=False
+                )
+            ).remote()
+            futures.append((node_id, future))
+        # Save & Print out Inspects Data
+        for node_id, future in (futures):
+            result = ray.get(future)
+            allocated_vram = self.node_resources[node_id]["Free_VRAM"] - result["Free_VRAM"]
+            print(f"[{node_id}] GPU Device {self.node_resources[node_id]["GPU_Name"]} Allocated VRAM: {allocated_vram} MiB")
 
     def _init_placement_groups(self):
         if not ray.is_initialized():
