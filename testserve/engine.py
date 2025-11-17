@@ -94,8 +94,8 @@ class LLMEngine:
         self.node_resources = {}
 
         # initialization
-        self._init_inspect()
         self._init_placement_groups()
+        self._init_inspect()
         self._init_workers()
         self._init_model()
         self.num_gpu_blocks, self.num_cpu_blocks = self._init_kvcache()
