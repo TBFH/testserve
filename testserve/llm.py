@@ -313,6 +313,127 @@ class TestOfflineLLM:
 
         return finished_requests
 
+class TestOfflineLLM_BS1:
+    def __init__(
+        self,
+        model: str,
+        tokenizer: Optional[str] = None,
+        trust_remote_code: bool = False,
+        seed: int = 1,
+        pipeline_parallel_size: int = 1,
+        tensor_parallel_size: int = 1,
+        pipeline_distribution: List[int] = [],
+        block_size: int = 16,
+        max_num_blocks_per_req: int = 256,
+        gpu_memory_utilization: float = 0.90,
+        swap_space: int = 1,
+        sched_policy: str = "fcfs",
+        max_batch_size: int = 1,
+        max_tokens_per_batch: int = 2048,
+        profiling_file: str = None,
+        use_dummy_weights: bool = False,
+        proactive_offloading: bool = True,
+        num_min_free_blocks_threshold: int = 0,
+        num_queues_for_prediction: int = 2,
+        use_skip_join: bool = True,
+    ):
+        self.model = model
+        self.tokenizer = tokenizer
+        self.model_config = ModelConfig(
+            model,
+            tokenizer,
+            trust_remote_code=trust_remote_code,
+            seed=seed,
+            use_dummy_weights=use_dummy_weights,
+        )
+        self.parallel_config = ParallelConfig(
+            pipeline_parallel_size=pipeline_parallel_size,
+            tensor_parallel_size=tensor_parallel_size,
+            pipeline_distribution=pipeline_distribution,
+        )
+        self.cache_config = CacheConfig(
+            block_size, max_num_blocks_per_req, gpu_memory_utilization, swap_space
+        )
+        self.sched_config = SchedConfig(
+            sched_policy,
+            max_batch_size,
+            max_tokens_per_batch,
+            model_name=model,
+            profiling_file=profiling_file,
+            parallel_config=self.parallel_config,
+            proactive_offloading=proactive_offloading,
+            num_min_free_blocks_threshold=num_min_free_blocks_threshold,
+            num_queues_for_prediction=num_queues_for_prediction,
+            use_skip_join=use_skip_join,
+        )
+        self.llm_engine = LLMEngine(
+            self.model_config,
+            self.parallel_config,
+            self.cache_config,
+            self.sched_config,
+        )
+
+    def generate(
+        self,
+        prompts: Optional[Union[List[str], str]] = None,
+        prompt_token_ids: Optional[List[List[int]]] = None,
+        sampling_params: Optional[Union[SamplingParams, List[SamplingParams]]] = None,
+        use_tqdm: bool = True,
+    ) -> List[Request]:
+        if prompts is None and prompt_token_ids is None:
+            raise ValueError("prompts or prompt_token_ids must be provided")
+        if isinstance(prompts, str):
+            # Convert a single prompt to a list.
+            prompts = [prompts]
+        if prompts is not None and prompt_token_ids is not None:
+            if len(prompts) != len(prompt_token_ids):
+                raise ValueError(
+                    "The lengths of prompts and prompt_token_ids must be the same."
+                )
+
+        num_requests = len(prompts) if prompts is not None else len(prompt_token_ids)
+        if sampling_params is None:
+            sampling_params = [SamplingParams()] * num_requests
+        elif isinstance(sampling_params, SamplingParams):
+            sampling_params = [sampling_params] * num_requests
+        else:
+            assert (
+                len(sampling_params) == num_requests
+            ), f"prompts should pair with the list of sampling parameters, \
+                 but got {num_requests} prompts and {len(sampling_params)} sampling parameters"
+
+        # Add requests to the engine.
+        for i in range(num_requests):
+            prompt = prompts[i] if prompts is not None else None
+            token_ids = None if prompt_token_ids is None else prompt_token_ids[i]
+            self.llm_engine.add_request(prompt, token_ids, sampling_params[i])
+
+        return self._run_llm_engine(use_tqdm)
+
+    def _run_llm_engine(self, use_tqdm: bool):
+        # Initialize tqdm.
+        if use_tqdm:
+            num_reqs = self.llm_engine.get_num_unfinished_requests()
+            pbar = tqdm(total=num_reqs, desc="Processed prompts")
+
+        # Run the LLM engine until all the requests are finished.
+        finished_requests = []
+        while True:
+            num_reqs = self.llm_engine.get_num_unfinished_requests()
+            if num_reqs == 0:
+                self._collect_all_workers_records()
+                break
+            _, new_finished_requests = self.llm_engine.step()
+            finished_requests += new_finished_requests
+            if use_tqdm:
+                pbar.update(len(new_finished_requests))
+        if use_tqdm:
+            pbar.close()
+
+        return finished_requests
+    
+    def _collect_all_workers_records(self):
+        self.llm_engine.collect()
 
 class AsyncLLM:
     """A Large Language Model (LLM) for online inference."""

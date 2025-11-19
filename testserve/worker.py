@@ -127,6 +127,8 @@ class ParaWorker:
         # Intermediate results buffer for pipeline_parallel
         self.intermed_input = None
         self.intermed_output = None
+        # For Pipeline_parallel Records
+        self.pp_records = []
 
     def ready(self):
         """
@@ -301,7 +303,7 @@ class ParaWorker:
 
         # gpu_inspect(self.parallel_config.pipeline_parallel_rank)
 
-        start = time.time()
+        forward_start = time.time()
         # run forward
         generated_tokens_ids = self.model.forward(
             input_tokens_batched,
@@ -312,12 +314,28 @@ class ParaWorker:
             self.intermed_input,
             self.intermed_output
         )
-        self.execution_time += time.time() - start
+        self.execution_time += time.time() - forward_start
+
+        # assert (len(request_ids) == 1), "batch_size should be 1 to record pp gantte"
+        if len(request_ids) == 1:
+            end = time.time() - start
+            step_record = {
+                "stage_id": self.parallel_config.pipeline_parallel_rank,
+                "req_id": request_ids[0],
+                "start_time": start,
+                "end_time": end,
+                "duration": end - start,
+                "desc": ""
+            }
+            self.pp_records.append(step_record)
 
         # if not self.parallel_config.is_last_stage() and len(input_tokens_batched) > 0:
         #     print(f"pp rank: [{self.parallel_config.pipeline_parallel_rank}] intermed_output is {self.intermed_output}")
         
         return generated_tokens_ids, copy.deepcopy(self.intermed_output)
+    
+    def submit_records(self):
+        return self.pp_records
 
     def swap_blocks(
         self,

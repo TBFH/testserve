@@ -281,11 +281,42 @@ class LLMEngine:
         return handlers
     
     def remote_forward_async(self, *args):
+        """
+        call all worker's forward asynchronously and transmit intermediate results between workers
+        """
         intermed = None
         for stage in self.stages:
             for worker in stage:
                 intermed = worker.step.remote(*args, intermed)
         return intermed
+    
+    def collect(self):
+        records = self.remote_call_all_workers('submit_records')
+        all_records = []
+        for stage_record in records:
+            counter = {}
+            for record in stage_record:
+                rid = record["req_id"]
+                if rid not in counter:
+                    counter[rid] = 1
+                else:
+                    counter[rid] += 1
+                record["desc"] = f"t{counter[rid]}"
+                all_records.append(record)
+        # 写入csv表格
+        import csv
+        import os
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        filename = os.path.join(os.path.expanduser('~'), f"stats/pp-records_{timestamp}.csv")
+        directory = os.path.dirname(filename)
+        if directory and not os.path.exists(directory): # 如果目录不存在，则创建（包括所有中间目录）
+            os.makedirs(directory, exist_ok=True)
+        fieldnames = list(all_records[0].keys())
+        with open(filename, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(all_records)
 
     def add_request(
         self,

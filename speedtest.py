@@ -1,6 +1,6 @@
 import torch
 
-from testserve.llm import TestOfflineLLM, SamplingParams
+from testserve.llm import TestOfflineLLM, SamplingParams, TestOfflineLLM_BS1
 from testserve.csv_appender import append_to_csv, sum_up_lines
 
 model_path = "/mnt/Data/austin/hf_models/opt-1.3b"
@@ -27,12 +27,20 @@ def swift_transformer():
     sampling_params = SamplingParams(
         temperature=0, top_p=1.0, max_tokens=max_output_tokens, stop=[]
     )
-    llm = TestOfflineLLM(
+    # llm = TestOfflineLLM(
+    #     model=model_path,
+    #     tensor_parallel_size=1,
+    #     pipeline_parallel_size=4,
+    #     pipeline_distribution=[10,10,2,2],
+    #     gpu_memory_utilization=0.01
+    # )
+    llm = TestOfflineLLM_BS1(
         model=model_path,
         tensor_parallel_size=1,
         pipeline_parallel_size=4,
         pipeline_distribution=[10,10,2,2],
-        gpu_memory_utilization=0.01
+        gpu_memory_utilization=0.01,
+        max_batch_size=1
     )
     outputs = llm.generate(prompts=prompts, sampling_params=sampling_params)
     for output in outputs:
