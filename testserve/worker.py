@@ -318,7 +318,7 @@ class ParaWorker:
 
         # assert (len(request_ids) == 1), "batch_size should be 1 to record pp gantte"
         if len(request_ids) == 1:
-            end = time.time() - start
+            end = time.time()
             step_record = {
                 "stage_id": self.parallel_config.pipeline_parallel_rank,
                 "req_id": request_ids[0],
