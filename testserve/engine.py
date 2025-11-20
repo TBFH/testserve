@@ -140,14 +140,14 @@ class LLMEngine:
         nodes = ray.nodes()
         futures = []
         for i, node in enumerate(nodes):
-            node_id = node['NodeID']
-            print(node_id)
-            future = resource_inspect.options(
-                scheduling_strategy=NodeAffinitySchedulingStrategy(
-                    node_id=node_id, soft=False
-                )
-            ).remote()
-            futures.append((node_id, future))
+            if node['Alive']:
+                node_id = node['NodeID']
+                future = resource_inspect.options(
+                    scheduling_strategy=NodeAffinitySchedulingStrategy(
+                        node_id=node_id, soft=False
+                    )
+                ).remote()
+                futures.append((node_id, future))
         # Save & Print out Inspects Data
         for idx, (node_id, future) in enumerate(futures):
             result = ray.get(future)
