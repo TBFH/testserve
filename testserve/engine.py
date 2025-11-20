@@ -141,6 +141,7 @@ class LLMEngine:
         futures = []
         for i, node in enumerate(nodes):
             node_id = node['NodeID']
+            print(node_id)
             future = resource_inspect.options(
                 scheduling_strategy=NodeAffinitySchedulingStrategy(
                     node_id=node_id, soft=False
