@@ -292,7 +292,7 @@ class LLMEngine:
     def collect(self):
         import requests
         try:
-            response = requests.post("http://pptime-server:8080/collect", timeout=5)
+            response = requests.post("http://219.222.20.79:31063/collect", timeout=5)
             if response.status_code == 200:
                 records = response.json()
             else:
