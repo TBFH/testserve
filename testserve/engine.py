@@ -290,7 +290,18 @@ class LLMEngine:
         return intermed
     
     def collect(self):
-        records = self.remote_call_all_workers('submit_records')
+        import requests
+        try:
+            response = requests.post("http://pptime-server:8080/collect", timeout=5)
+            if response.status_code == 200:
+                records = response.json()
+            else:
+                print(f"Collect Failed, State Code: {response.status_code}")
+                return None
+        except requests.exceptions.RequestException as e:
+            print(f"Collect Failed: {e}")
+            return None
+        # records = self.remote_call_all_workers('submit_records')
         all_records = []
         for stage_record in records:
             counter = {}
@@ -300,7 +311,7 @@ class LLMEngine:
                     counter[rid] = 1
                 else:
                     counter[rid] += 1
-                record["desc"] = f"t{counter[rid]}"
+                record["desc"] = counter[rid]
                 all_records.append(record)
         # 写入csv表格
         import csv

@@ -2,6 +2,7 @@
 import copy
 import time
 from typing import List, Tuple, Optional
+import requests
 
 import torch
 import torch.distributed
@@ -129,6 +130,7 @@ class ParaWorker:
         self.intermed_output = None
         # For Pipeline_parallel Records
         self.pp_records = []
+        self.pptimer_url = "http://pptime-server:8080"
 
     def ready(self):
         """
@@ -302,6 +304,12 @@ class ParaWorker:
         # gpu_inspect(self.parallel_config.pipeline_parallel_rank)
 
         forward_start = time.time()
+        self.record(
+            'start',
+            self.parallel_config.pipeline_parallel_rank,
+            request_ids[0],
+            0
+        )
         # run forward
         generated_tokens_ids = self.model.forward(
             input_tokens_batched,
@@ -313,24 +321,47 @@ class ParaWorker:
             self.intermed_output
         )
         self.execution_time += time.time() - forward_start
+        self.record(
+            'end',
+            self.parallel_config.pipeline_parallel_rank,
+            request_ids[0],
+            0
+        )
 
-        end = time.time()
+        # end = time.time()
         # assert (len(request_ids) == 1), "batch_size should be 1 to record pp gantte"
-        if len(request_ids) == 1:
-            step_record = {
-                "stage_id": self.parallel_config.pipeline_parallel_rank,
-                "req_id": request_ids[0],
-                "start_time": forward_start,
-                "end_time": end,
-                "duration": end - start,
-                "desc": ""
-            }
-            self.pp_records.append(step_record)
+        # if len(request_ids) == 1:
+        #     step_record = {
+        #         "stage_id": self.parallel_config.pipeline_parallel_rank,
+        #         "req_id": request_ids[0],
+        #         "start_time": forward_start,
+        #         "end_time": end,
+        #         "duration": end - start,
+        #         "desc": 0
+        #     }
+        #     self.pp_records.append(step_record)
 
         # if not self.parallel_config.is_last_stage() and len(input_tokens_batched) > 0:
         #     print(f"pp rank: [{self.parallel_config.pipeline_parallel_rank}] intermed_output is {self.intermed_output}")
         
         return generated_tokens_ids, copy.deepcopy(self.intermed_output)
+    
+    def record(self, api, stage_id, req_id, desc):
+        data = {
+            "stage_id": stage_id,
+            "req_id": req_id,
+            "desc": desc
+        }
+        try:
+            response = requests.post(
+                f"{self.pptimer_url}/{api}",
+                json=data,
+                timeout=5
+            )
+            return response.status_code == 200
+        except requests.exceptions.RequestException as e:
+            print(f"Record Failed: {e}")
+            return False
     
     def submit_records(self):
         return self.pp_records
