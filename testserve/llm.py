@@ -433,6 +433,7 @@ class TestOfflineLLM_BS1:
         return finished_requests
     
     def _collect_all_workers_records(self):
+        time.sleep(2)
         self.llm_engine.collect()
 
 class AsyncLLM:
