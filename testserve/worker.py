@@ -304,12 +304,13 @@ class ParaWorker:
         # gpu_inspect(self.parallel_config.pipeline_parallel_rank)
 
         forward_start = time.time()
-        self.record(
-            'start',
-            self.parallel_config.pipeline_parallel_rank,
-            request_ids[0],
-            0
-        )
+        if len(request_ids) == 1:
+            self.record(
+                'start',
+                self.parallel_config.pipeline_parallel_rank,
+                request_ids[0],
+                0
+            )
         # run forward
         generated_tokens_ids = self.model.forward(
             input_tokens_batched,
@@ -321,12 +322,13 @@ class ParaWorker:
             self.intermed_output
         )
         self.execution_time += time.time() - forward_start
-        self.record(
-            'end',
-            self.parallel_config.pipeline_parallel_rank,
-            request_ids[0],
-            0
-        )
+        if len(request_ids) == 1:
+            self.record(
+                'end',
+                self.parallel_config.pipeline_parallel_rank,
+                request_ids[0],
+                0
+            )
 
         # end = time.time()
         # assert (len(request_ids) == 1), "batch_size should be 1 to record pp gantte"
