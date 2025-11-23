@@ -13,7 +13,7 @@ with open("/home/austin/repos/FastServe/prompts_20.json", 'r', encoding='utf-8')
 prompts = data.get('test_data', [])
 prompts = [' '.join(prompt.split()[:max_input_tokens]) for prompt in prompts]
 
-req_num = 4
+req_num = 3
 
 def swift_transformer():
     '''
