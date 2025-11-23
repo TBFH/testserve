@@ -1,25 +1,22 @@
 from testserve.llm import TestOfflineLLM, SamplingParams, TestOfflineLLM_BS1
 from testserve.csv_appender import append_to_csv, sum_up_lines
+import json
 
 model_path = "/mnt/Data/austin/hf_models/opt-1.3b"
 # model_path = "/mnt/Data/austin/hf_models/Llama-2-7b-chat-hf"
 # model_path = "/mnt/Data/austin/hf_models/Meta-Llama-3-8B-Instruct"
 max_input_tokens = 32
 max_output_tokens = 32
-
-import json
-with open("/home/austin/repos/FastServe/prompts_20.json", 'r', encoding='utf-8') as file:
-    data = json.load(file)
-prompts = data.get('test_data', [])
-prompts = [' '.join(prompt.split()[:max_input_tokens]) for prompt in prompts]
-
 req_num = 3
 
 def swift_transformer():
     '''
     SwiftTransformer Metrics Testing
     '''
-    global prompts
+    with open("/home/austin/repos/FastServe/prompts_20.json", 'r', encoding='utf-8') as file:
+        data = json.load(file)
+    prompts = data.get('test_data', [])
+    prompts = [' '.join(prompt.split()[:max_input_tokens]) for prompt in prompts]
     prompts = prompts[:req_num]
 
     sampling_params = SamplingParams(
