@@ -347,6 +347,10 @@ class LLMEngine:
         )
         self.scheduler.add_request(req)
 
+    def warmup(self):
+        remote_call = self.remote_forward_async([], [[]], [], [])
+        ray.get(remote_call)
+
     def step(self):
         """
         Run one step of inference on the batch of requests chosen by the scheduler.

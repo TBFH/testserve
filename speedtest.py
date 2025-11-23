@@ -37,7 +37,7 @@ def swift_transformer():
         gpu_memory_utilization=0.01,
         max_batch_size=1
     )
-    outputs = llm.generate(prompts=prompts, sampling_params=sampling_params)
+    outputs = llm.generate(prompts=prompts, sampling_params=sampling_params, use_tqdm=False)
     for output in outputs:
         prompt = output.prompt
         generated_text = output.get_response()

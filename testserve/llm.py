@@ -418,6 +418,7 @@ class TestOfflineLLM_BS1:
 
         # Run the LLM engine until all the requests are finished.
         finished_requests = []
+        self.llm_engine.warmup()
         while True:
             num_reqs = self.llm_engine.get_num_unfinished_requests()
             if num_reqs == 0:
