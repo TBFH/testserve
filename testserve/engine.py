@@ -348,7 +348,13 @@ class LLMEngine:
         self.scheduler.add_request(req)
 
     def warmup(self):
-        remote_call = self.remote_forward_async([], [], [], [])
+        # remote_call = self.remote_forward_async([], [], [], [])
+        remote_call = self.remote_forward_async(
+            [1, 2],
+            [[21, 22], [21, 22]],
+            [0, 0],
+            [0, 1]
+        )
         ray.get(remote_call)
 
     def step(self):
