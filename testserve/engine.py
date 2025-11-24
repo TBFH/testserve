@@ -353,7 +353,7 @@ class LLMEngine:
             [1, 2],
             [[21, 22], [21, 22]],
             [0, 0],
-            [0, 1]
+            [[0], [1]]
         )
         ray.get(remote_call)
 
