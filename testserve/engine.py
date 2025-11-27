@@ -110,6 +110,7 @@ class LLMEngine:
         self.batches_in_pipeline = []
         self.batches_ret_futures = []
         self.node_resources = {}
+        self.device_map = {}
 
         # initialization
         self._init_placement_groups()
@@ -133,6 +134,17 @@ class LLMEngine:
         )
         logger.info(self.scheduler)
         logger.info(f"{self.block_manager}")
+
+    def _device_nodeid_mapping(self):
+        nodes = ray.nodes()
+        for node in nodes:
+            if node['Alive']:
+                node_id = node['NodeID']
+                resources = list(node['Resources'].keys())
+                for el in resources:
+                    if el.startswith('device'):
+                        device = el.split(':',1)[1]
+                self.device_map[node_id] = device
 
     def _init_inspect(self):
         nodes = ray.nodes()
@@ -163,8 +175,8 @@ class LLMEngine:
         for future in (futures):
             result = ray.get(future)
             node_id = result["NodeID"]
-            allocated_vram = self.node_resources[node_id]["Free_VRAM"] - result["Free_VRAM"]
-            print(f'[{node_id}] GPU Device {self.node_resources[node_id]["GPU_Name"]} Allocated VRAM: {allocated_vram:.2f} MiB ------> [Rank {result["Rank"]}] with {result["Num_Layers"]} Layers')
+            # print(f'[{node_id}] GPU Device {self.node_resources[node_id]["GPU_Name"]} Allocated VRAM: {allocated_vram:.2f} MiB ------> [Rank {result["Rank"]}] with {result["Num_Layers"]} Layers')
+            print(f'[{node_id}] GPU Device {self.device_map[node_id]} ------> [Rank {result["Rank"]}] with {result["Num_Layers"]} Layers')
 
     def _init_placement_groups(self):
         if not ray.is_initialized():
@@ -172,6 +184,7 @@ class LLMEngine:
                 # include_dashboard=False
                 address="ray://219.222.20.79:32172"
             )
+        self._device_nodeid_mapping()
         self._init_inspect()
         num_cluster_gpus = ray.cluster_resources().get("GPU", 0)
         if (
@@ -207,9 +220,9 @@ class LLMEngine:
         each worker will be assigned a GPU
         the worker will be placed in the corresponding placement group
         """
-        self.pp_id = ray.put(copy.deepcopy(torch.ops.nccl_ops.generate_nccl_id()))
+        # self.pp_id = ray.put(copy.deepcopy(torch.ops.nccl_ops.generate_nccl_id()))
         # wait until pp_id is ready
-        ray.get(self.pp_id)
+        # ray.get(self.pp_id)
         init_handlers = []
         for i in range(self.parallel_config.pipeline_parallel_size):
             workers = []
