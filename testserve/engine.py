@@ -182,7 +182,7 @@ class LLMEngine:
         if not ray.is_initialized():
             ray.init(
                 # include_dashboard=False
-                address="ray://219.222.20.79:32172"
+                address="ray://219.222.20.79:30807"
             )
         self._device_nodeid_mapping()
         self._init_inspect()
@@ -194,25 +194,25 @@ class LLMEngine:
         ):
             raise ValueError("No GPU resources available")
 
-        self.placement_groups = []
+        # self.placement_groups = []
 
-        # for each pipeline stage, create a placement group with tensor_parallel_size GPUs
-        # the 'PACK' strategy will pack the GPUs into one node
-        for _ in range(self.parallel_config.pipeline_parallel_size):
-            placement_group = ray.util.placement_group(
-                [
-                    {
-                        "GPU": 1,
-                    }
-                ]
-                * self.parallel_config.tensor_parallel_size,
-                strategy="PACK",
-            )
-            ray.get(placement_group.ready(), timeout=1000)
-            self.placement_groups.append(placement_group)
-            logger.info(
-                f"creating placement group with {self.parallel_config.tensor_parallel_size} GPUs"
-            )
+        # # for each pipeline stage, create a placement group with tensor_parallel_size GPUs
+        # # the 'PACK' strategy will pack the GPUs into one node
+        # for _ in range(self.parallel_config.pipeline_parallel_size):
+        #     placement_group = ray.util.placement_group(
+        #         [
+        #             {
+        #                 "GPU": 1,
+        #             }
+        #         ]
+        #         * self.parallel_config.tensor_parallel_size,
+        #         strategy="PACK",
+        #     )
+        #     ray.get(placement_group.ready(), timeout=1000)
+        #     self.placement_groups.append(placement_group)
+        #     logger.info(
+        #         f"creating placement group with {self.parallel_config.tensor_parallel_size} GPUs"
+        #     )
 
     def _init_workers(self):
         """
@@ -223,34 +223,69 @@ class LLMEngine:
         # self.pp_id = ray.put(copy.deepcopy(torch.ops.nccl_ops.generate_nccl_id()))
         # wait until pp_id is ready
         # ray.get(self.pp_id)
+        # init_handlers = []
+        # for i in range(self.parallel_config.pipeline_parallel_size):
+        #     workers = []
+        #     # tp_id = ray.put(copy.deepcopy(torch.ops.nccl_ops.generate_nccl_id()))
+        #     # wait until tp_id is ready
+        #     # ray.get(tp_id)
+        #     for j in range(self.parallel_config.tensor_parallel_size):
+        #         tmp_parallel_config = copy.deepcopy(self.parallel_config)
+        #         tmp_parallel_config.pipeline_parallel_rank = i
+        #         tmp_parallel_config.tensor_parallel_rank = j
+        #         worker = ParaWorker.options(
+        #             scheduling_strategy=PlacementGroupSchedulingStrategy(
+        #                 placement_group=self.placement_groups[i],
+        #                 placement_group_bundle_index=j,
+        #             )
+        #         ).remote(
+        #             model_config=self.model_config,
+        #             cache_config=self.cache_config,
+        #             sched_config=self.sched_config,
+        #             parallel_config=tmp_parallel_config,
+        #             # pipeline_parallel_id=self.pp_id,
+        #             # tensor_parallel_id=tp_id,
+        #         )
+        #         workers.append(worker)
+        #         init_handlers.append(worker.ready.remote())
+        #     self.stages.append(workers)
+        # # Ray will block until all workers are ready
+        # ray.get(init_handlers)
+
+        deployment = []
+        for node_id, res in self.node_resources:
+            if res['Free_VRAM'] > 4096 and 'jetson' in self.device_map[node_id]:
+                deployment.append(node_id)
+        
         init_handlers = []
         for i in range(self.parallel_config.pipeline_parallel_size):
             workers = []
-            tp_id = ray.put(copy.deepcopy(torch.ops.nccl_ops.generate_nccl_id()))
+            # tp_id = ray.put(copy.deepcopy(torch.ops.nccl_ops.generate_nccl_id()))
             # wait until tp_id is ready
-            ray.get(tp_id)
+            # ray.get(tp_id)
             for j in range(self.parallel_config.tensor_parallel_size):
                 tmp_parallel_config = copy.deepcopy(self.parallel_config)
                 tmp_parallel_config.pipeline_parallel_rank = i
                 tmp_parallel_config.tensor_parallel_rank = j
                 worker = ParaWorker.options(
-                    scheduling_strategy=PlacementGroupSchedulingStrategy(
-                        placement_group=self.placement_groups[i],
-                        placement_group_bundle_index=j,
+                    scheduling_strategy=NodeAffinitySchedulingStrategy(
+                        node_id=deployment[i],
+                        soft=False
                     )
                 ).remote(
                     model_config=self.model_config,
                     cache_config=self.cache_config,
                     sched_config=self.sched_config,
                     parallel_config=tmp_parallel_config,
-                    pipeline_parallel_id=self.pp_id,
-                    tensor_parallel_id=tp_id,
+                    # pipeline_parallel_id=self.pp_id,
+                    # tensor_parallel_id=tp_id,
                 )
                 workers.append(worker)
                 init_handlers.append(worker.ready.remote())
             self.stages.append(workers)
         # Ray will block until all workers are ready
         ray.get(init_handlers)
+
 
     def _init_model(self):
         """
