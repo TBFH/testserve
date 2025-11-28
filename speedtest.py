@@ -35,7 +35,8 @@ def swift_transformer():
         pipeline_parallel_size=4,
         pipeline_distribution=[10,10,2,2],
         gpu_memory_utilization=0.01,
-        max_batch_size=1
+        max_batch_size=1,
+        enable_records=True
     )
     outputs = llm.generate(prompts=prompts, sampling_params=sampling_params, use_tqdm=False)
     for output in outputs:

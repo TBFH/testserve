@@ -336,6 +336,7 @@ class TestOfflineLLM_BS1:
         num_min_free_blocks_threshold: int = 0,
         num_queues_for_prediction: int = 2,
         use_skip_join: bool = True,
+        enable_records: bool = False
     ):
         self.model = model
         self.tokenizer = tokenizer
@@ -371,7 +372,9 @@ class TestOfflineLLM_BS1:
             self.parallel_config,
             self.cache_config,
             self.sched_config,
+            enable_records=enable_records
         )
+        self.enable_records = enable_records
 
     def generate(
         self,
@@ -422,7 +425,8 @@ class TestOfflineLLM_BS1:
         while True:
             num_reqs = self.llm_engine.get_num_unfinished_requests()
             if num_reqs == 0:
-                self._collect_all_workers_records()
+                if self.enable_records:
+                    self._collect_all_workers_records()
                 break
             _, new_finished_requests = self.llm_engine.step()
             finished_requests += new_finished_requests

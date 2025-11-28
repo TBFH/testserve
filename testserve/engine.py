@@ -87,6 +87,7 @@ class LLMEngine:
         parallel_config: ParallelConfig,
         cache_config: CacheConfig,
         sched_config: SchedConfig,
+        enable_records: bool
     ):
         self.model_config = model_config
         self.parallel_config = parallel_config
@@ -111,6 +112,7 @@ class LLMEngine:
         self.batches_ret_futures = []
         self.node_resources = {}
         self.device_map = {}
+        self.enable_records = enable_records
 
         # initialization
         self._init_placement_groups()
@@ -253,7 +255,7 @@ class LLMEngine:
         # ray.get(init_handlers)
 
         deployment = []
-        for node_id, res in self.node_resources:
+        for node_id, res in self.node_resources.items():
             if res['Free_VRAM'] > 4096 and 'jetson' in self.device_map[node_id]:
                 deployment.append(node_id)
         
@@ -279,6 +281,7 @@ class LLMEngine:
                     parallel_config=tmp_parallel_config,
                     # pipeline_parallel_id=self.pp_id,
                     # tensor_parallel_id=tp_id,
+                    enable_records=self.enable_records
                 )
                 workers.append(worker)
                 init_handlers.append(worker.ready.remote())

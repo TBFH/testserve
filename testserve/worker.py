@@ -92,6 +92,7 @@ class ParaWorker:
         parallel_config: ParallelConfig = ParallelConfig(),
         tensor_parallel_id: List[int] = None,
         pipeline_parallel_id: List[int] = None,
+        enable_records: bool = False
     ) -> None:
         self.model = None
         self.model_config = model_config
@@ -131,6 +132,7 @@ class ParaWorker:
         # For Pipeline_parallel Records
         self.pp_records = []
         self.pptimer_url = "http://pptime-server:8080"
+        self.enable_records = enable_records
 
     def ready(self):
         """
@@ -304,7 +306,7 @@ class ParaWorker:
         # gpu_inspect(self.parallel_config.pipeline_parallel_rank)
 
         forward_start = time.time()
-        if len(request_ids) == 1:
+        if len(request_ids) == 1 and self.enable_records:
             self.record(
                 'start',
                 self.parallel_config.pipeline_parallel_rank,
@@ -322,7 +324,7 @@ class ParaWorker:
             self.intermed_output
         )
         self.execution_time += time.time() - forward_start
-        if len(request_ids) == 1:
+        if len(request_ids) == 1 and self.enable_records:
             self.record(
                 'end',
                 self.parallel_config.pipeline_parallel_rank,
