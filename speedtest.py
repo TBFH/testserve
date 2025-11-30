@@ -36,7 +36,7 @@ def swift_transformer():
         pipeline_distribution=[10,10,2,2],
         gpu_memory_utilization=0.01,
         max_batch_size=1,
-        enable_records=True
+        enable_records=False
     )
     outputs = llm.generate(prompts=prompts, sampling_params=sampling_params, use_tqdm=False)
     for output in outputs:
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input_length', type=int, default=32)
     parser.add_argument('-o', '--output_length', type=int, default=32)
-    parser.add_argument('-r', '--req_num', type=int, default=4)
+    parser.add_argument('-r', '--req_num', type=int, default=20)
     args = parser.parse_args()
 
     max_input_tokens = args.input_length

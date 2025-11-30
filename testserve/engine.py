@@ -166,7 +166,7 @@ class LLMEngine:
             self.node_resources[node_id] = result
             outlog = ''
             outlog += f'[Worker{idx}] NodeID: {node_id}\n'
-            outlog += f'[Worker{idx}] GPU Device {0}: {result["GPU_Name"]}\n'
+            outlog += f'[Worker{idx}] Device: {self.device_map[node_id]}\n'
             outlog += f'[Worker{idx}] Used/Total VRAM: {result["Used_VRAM"]/1024:.1f}/{result["Total_VRAM"]/1024:.1f} GB ({(result["Used_VRAM"]/result["Total_VRAM"])*100:.1f}%)\n'
             outlog += f'[Worker{idx}] Free VRAM: {result["Free_VRAM"]/1024:.1f} GB\n'
             print(outlog)
