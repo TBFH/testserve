@@ -257,7 +257,10 @@ class LLMEngine:
         deployment = []
         for node_id, res in self.node_resources.items():
             if res['Free_VRAM'] > 4096 and 'jetson' in self.device_map[node_id]:
-                deployment.append(node_id)
+                if 'jetson-64g' in self.device_map[node_id]:
+                    deployment.insert(0, node_id)
+                else:
+                    deployment.append(node_id)
         
         init_handlers = []
         for i in range(self.parallel_config.pipeline_parallel_size):
