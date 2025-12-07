@@ -276,6 +276,14 @@ class ParaWorker:
     ) -> Tuple[Optional[List[int]], int]:
         """Run one step of inference on the batch of requests."""
 
+        if len(request_ids) == 1 and self.enable_records:
+            self.record(
+                'start',
+                self.parallel_config.pipeline_parallel_rank,
+                request_ids[0],
+                0
+            )
+
         start = time.time()
         # Check whether synchronization is necessary
         for request_id in request_ids:
@@ -306,13 +314,6 @@ class ParaWorker:
         # gpu_inspect(self.parallel_config.pipeline_parallel_rank)
 
         forward_start = time.time()
-        if len(request_ids) == 1 and self.enable_records:
-            self.record(
-                'start',
-                self.parallel_config.pipeline_parallel_rank,
-                request_ids[0],
-                0
-            )
         # run forward
         generated_tokens_ids = self.model.forward(
             input_tokens_batched,
