@@ -34,6 +34,7 @@ def swift_transformer():
         tensor_parallel_size=1,
         pipeline_parallel_size=4,
         pipeline_distribution=[6,6,6,6],
+        deployments=['jetson-8g-1', 'jetson-64g-4', 'jetson-16g-3', 'jetson-16g-6'],
         gpu_memory_utilization=0.01,
         max_batch_size=1,
         enable_records=True

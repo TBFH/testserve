@@ -87,12 +87,14 @@ class LLMEngine:
         parallel_config: ParallelConfig,
         cache_config: CacheConfig,
         sched_config: SchedConfig,
-        enable_records: bool
+        enable_records: bool,
+        deployments: List[str]
     ):
         self.model_config = model_config
         self.parallel_config = parallel_config
         self.cache_config = cache_config
         self.sched_config = sched_config
+        self.deployments = deployments
 
         self.request_counter = Counter()
         self.step_counter = Counter()
@@ -255,12 +257,19 @@ class LLMEngine:
         # ray.get(init_handlers)
 
         deployment = []
-        for node_id, res in self.node_resources.items():
-            if res['Free_VRAM'] > 4096 and 'jetson' in self.device_map[node_id]:
-                if 'jetson-64g' in self.device_map[node_id]:
-                    deployment.insert(0, node_id)
-                else:
-                    deployment.append(node_id)
+        if len(self.deployments) > 0:
+            device_map_rvt = {v:k for k,v in self.device_map.items()}
+            for node in self.deployments:
+                if node not in device_map_rvt:
+                    raise RuntimeError(f"Node [{node}] not found in cluster")
+                deployment.append(device_map_rvt[node])
+        else:
+            for node_id, res in self.node_resources.items():
+                if res['Free_VRAM'] > 4096 and 'jetson' in self.device_map[node_id]:
+                    if 'jetson-64g' in self.device_map[node_id]:
+                        deployment.insert(0, node_id)
+                    else:
+                        deployment.append(node_id)
         
         init_handlers = []
         for i in range(self.parallel_config.pipeline_parallel_size):
@@ -372,7 +381,7 @@ class LLMEngine:
         import os
         from datetime import datetime
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        filename = os.path.join(os.path.expanduser('~'), f"stats/pp-records_{timestamp}.csv")
+        filename = os.path.join(os.path.expanduser('~'), f"stats/uneven_partition/pp-records_{timestamp}.csv")
         directory = os.path.dirname(filename)
         if directory and not os.path.exists(directory): # 如果目录不存在，则创建（包括所有中间目录）
             os.makedirs(directory, exist_ok=True)

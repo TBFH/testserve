@@ -323,6 +323,7 @@ class TestOfflineLLM_BS1:
         pipeline_parallel_size: int = 1,
         tensor_parallel_size: int = 1,
         pipeline_distribution: List[int] = [],
+        deployments: List[str] = [],
         block_size: int = 16,
         max_num_blocks_per_req: int = 256,
         gpu_memory_utilization: float = 0.90,
@@ -367,12 +368,14 @@ class TestOfflineLLM_BS1:
             num_queues_for_prediction=num_queues_for_prediction,
             use_skip_join=use_skip_join,
         )
+        assert len(deployments) == len(pipeline_distribution), "deployments of all stages to nodes must be specified"
         self.llm_engine = LLMEngine(
             self.model_config,
             self.parallel_config,
             self.cache_config,
             self.sched_config,
-            enable_records=enable_records
+            enable_records=enable_records,
+            deployments=deployments
         )
         self.enable_records = enable_records
 
