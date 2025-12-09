@@ -316,7 +316,7 @@ class LLMEngine:
         #         self.cache_config.cpu_swap_space,
         #     )
         # )
-        num_gpu_blocks, num_cpu_blocks = (300, 1)
+        num_gpu_blocks, num_cpu_blocks = (500, 1)
         print(f"num_gpu_blocks: {num_gpu_blocks}, num_cpu_blocks: {num_cpu_blocks}")
         self.remote_call_all_workers(
             "init_kvcache_and_swap", num_gpu_blocks, num_cpu_blocks

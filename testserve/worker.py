@@ -279,6 +279,9 @@ class ParaWorker:
     ) -> Tuple[Optional[List[int]], int]:
         """Run one step of inference on the batch of requests."""
 
+        if len(request_ids) == 0:
+            return [], torch.empty(0, dtype=self.model_config.get_torch_dtype(), device="cuda")
+
         if self.enable_records:
             self.record(
                 'start',
