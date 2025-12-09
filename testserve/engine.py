@@ -309,13 +309,14 @@ class LLMEngine:
         self.remote_call_all_workers("init_model")
 
     def _init_kvcache(self):
-        num_gpu_blocks, num_cpu_blocks = ray.get(
-            self.stages[0][0]._profile_num_available_blocks.remote(
-                self.cache_config.block_size,
-                self.cache_config.gpu_memory_utilization,
-                self.cache_config.cpu_swap_space,
-            )
-        )
+        # num_gpu_blocks, num_cpu_blocks = ray.get(
+        #     self.stages[0][0]._profile_num_available_blocks.remote(
+        #         self.cache_config.block_size,
+        #         self.cache_config.gpu_memory_utilization,
+        #         self.cache_config.cpu_swap_space,
+        #     )
+        # )
+        num_gpu_blocks, num_cpu_blocks = (300, 1)
         print(f"num_gpu_blocks: {num_gpu_blocks}, num_cpu_blocks: {num_cpu_blocks}")
         self.remote_call_all_workers(
             "init_kvcache_and_swap", num_gpu_blocks, num_cpu_blocks
@@ -411,6 +412,7 @@ class LLMEngine:
         self.scheduler.add_request(req)
 
     def warmup(self):
+        self.remote_call_all_workers_async('toggle_record', False)
         # remote_call = self.remote_forward_async([], [], [], [])
         remote_call = self.remote_forward_async(
             [1, 2],
@@ -418,6 +420,7 @@ class LLMEngine:
             [0, 0],
             [[0], [1]]
         )
+        self.remote_call_all_workers_async('toggle_record', True)
         ray.get(remote_call)
 
     def step(self):

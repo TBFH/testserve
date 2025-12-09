@@ -142,6 +142,9 @@ class ParaWorker:
         # gpu_inspect(self.parallel_config.pipeline_parallel_rank)
         pass
 
+    def toggle_record(self, isenable: bool):
+        self.enable_records = isenable
+
     def resource_inspect(self):
         node_id = ray.get_runtime_context().get_node_id()
         # GPU Overall Inspect
