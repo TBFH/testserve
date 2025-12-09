@@ -283,7 +283,7 @@ class ParaWorker:
             self.record(
                 'start',
                 self.parallel_config.pipeline_parallel_rank,
-                request_ids[0] if len(request_ids) == 1 else sum(request_ids),
+                sum(request_ids),
                 0
             )
 
@@ -333,7 +333,7 @@ class ParaWorker:
             self.record(
                 'end',
                 self.parallel_config.pipeline_parallel_rank,
-                request_ids[0] if len(request_ids) == 1 else sum(request_ids),
+                sum(request_ids),
                 0
             )
 
