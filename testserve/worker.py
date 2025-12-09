@@ -276,11 +276,11 @@ class ParaWorker:
     ) -> Tuple[Optional[List[int]], int]:
         """Run one step of inference on the batch of requests."""
 
-        if len(request_ids) == 1 and self.enable_records:
+        if self.enable_records:
             self.record(
                 'start',
                 self.parallel_config.pipeline_parallel_rank,
-                request_ids[0],
+                request_ids[0] if len(request_ids) == 1 else sum(request_ids),
                 0
             )
 
@@ -325,11 +325,12 @@ class ParaWorker:
             self.intermed_output
         )
         self.execution_time += time.time() - forward_start
-        if len(request_ids) == 1 and self.enable_records:
+        
+        if self.enable_records:
             self.record(
                 'end',
                 self.parallel_config.pipeline_parallel_rank,
-                request_ids[0],
+                request_ids[0] if len(request_ids) == 1 else sum(request_ids),
                 0
             )
 
