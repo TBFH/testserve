@@ -330,7 +330,7 @@ class TestOfflineLLM_BS1:
         swap_space: int = 1,
         sched_policy: str = "fcfs",
         max_batch_size: int = 1,
-        max_tokens_per_batch: int = 2048,
+        max_tokens_per_batch: int = 4096,
         profiling_file: str = None,
         use_dummy_weights: bool = False,
         proactive_offloading: bool = True,

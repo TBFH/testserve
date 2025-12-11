@@ -171,7 +171,7 @@ class LLMEngine:
             outlog += f'[Worker{idx}] Device: {self.device_map[node_id]}\n'
             outlog += f'[Worker{idx}] Used/Total VRAM: {result["Used_VRAM"]/1024:.1f}/{result["Total_VRAM"]/1024:.1f} GB ({(result["Used_VRAM"]/result["Total_VRAM"])*100:.1f}%)\n'
             outlog += f'[Worker{idx}] Free VRAM: {result["Free_VRAM"]/1024:.1f} GB\n'
-            print(outlog)
+            # print(outlog)
     
     def _gpu_usage_summary(self):
         futures = self.remote_call_all_workers_async("resource_inspect")
@@ -316,7 +316,7 @@ class LLMEngine:
         #         self.cache_config.cpu_swap_space,
         #     )
         # )
-        num_gpu_blocks, num_cpu_blocks = (500, 1)
+        num_gpu_blocks, num_cpu_blocks = (3000, 1)
         print(f"num_gpu_blocks: {num_gpu_blocks}, num_cpu_blocks: {num_cpu_blocks}")
         self.remote_call_all_workers(
             "init_kvcache_and_swap", num_gpu_blocks, num_cpu_blocks
@@ -420,7 +420,7 @@ class LLMEngine:
             [0, 0],
             [[0], [1]]
         )
-        self.remote_call_all_workers_async('toggle_record', True)
+        self.remote_call_all_workers_async('toggle_record', self.enable_records)
         ray.get(remote_call)
 
     def step(self):

@@ -109,6 +109,10 @@ class FCFS(Scheduler):
         block_size = self.block_manager.cache_config.block_size
         def get_block_needed(length: int):
             return (length + block_size - 1) // block_size
+
+        all_requests = []
+        for batch in self.batch_queues:
+            all_requests += batch.requests
         
         return (
             len(self.batch_queues[self.cur_index]) < self.sched_config.max_batch_size
@@ -117,9 +121,13 @@ class FCFS(Scheduler):
             + request.get_num_input_tokens()
             <= self.sched_config.max_tokens_per_batch
         ) and (
+            # sum([
+            #     get_block_needed(len(req.prompt_token_ids) + req.get_output_len())
+            #     for req in self.batch_queues[self.cur_index].requests + [request]
+            # ]) <= self.block_manager.max_num_gpu_blocks
             sum([
                 get_block_needed(len(req.prompt_token_ids) + req.get_output_len())
-                for req in self.batch_queues[self.cur_index].requests + [request]
+                for req in all_requests + [request]
             ]) <= self.block_manager.max_num_gpu_blocks
         )
 
