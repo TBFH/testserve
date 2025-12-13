@@ -330,7 +330,7 @@ class TestOfflineLLM_BS1:
         swap_space: int = 1,
         sched_policy: str = "fcfs",
         max_batch_size: int = 1,
-        max_tokens_per_batch: int = 4096,
+        max_tokens_per_batch: int = 16384,
         profiling_file: str = None,
         use_dummy_weights: bool = False,
         proactive_offloading: bool = True,
@@ -430,6 +430,9 @@ class TestOfflineLLM_BS1:
             if num_reqs == 0:
                 if self.enable_records:
                     self._collect_all_workers_records()
+                # 重置失败请求数据
+                num_fails = len(self.llm_engine.failset)
+                self.llm_engine.failset.clear()
                 break
             _, new_finished_requests = self.llm_engine.step()
             finished_requests += new_finished_requests
@@ -438,7 +441,7 @@ class TestOfflineLLM_BS1:
         if use_tqdm:
             pbar.close()
 
-        return finished_requests
+        return finished_requests, num_fails
     
     def _collect_all_workers_records(self):
         time.sleep(2)

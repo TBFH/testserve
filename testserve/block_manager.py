@@ -120,7 +120,7 @@ class BlockManager:
         num_blocks_needed = self.get_num_blocks_needed(request)
         return num_blocks_needed - num_blocks_cur
 
-    def allocate_blocks(self, request: Request):
+    def allocate_blocks(self, request: Request) -> bool:
         """Allocate blocks for a request"""
         # Make sure the request is not already allocated or its blocks are on GPU
         assert (
@@ -139,14 +139,33 @@ class BlockManager:
             assert self.request_location[request.request_id] == BlockLocation.GPU
             num_blocks_cur = len(self.block_table[request.request_id])
             if num_blocks_cur < num_blocks_needed:
+                if self.get_num_avail_gpu_blocks() < (num_blocks_needed - num_blocks_cur):
+                    return False
                 self.block_table[request.request_id] += self._get_free_blocks(
                     num_blocks_needed - num_blocks_cur, BlockLocation.GPU
                 )
+        return True
 
-    def allocate_blocks_batched(self, batch_requests: BatchedRequests):
+    def allocate_blocks_batched(self, batch_requests: BatchedRequests) -> List[Request]:
         """Allocate blocks for a batch of requests"""
+        failed_reqs_ids = []
         for request in batch_requests.requests:
-            self.allocate_blocks(request)
+            if not self.allocate_blocks(request):
+                failed_reqs_ids.append(request.request_id)
+                # print(f'Request [{request.request_id}] failed, re-scheduled.')
+                self.free_blocks(request.request_id)    # 释放失败请求占用的所有KVCache映射表Block
+        # 将失败请求踢出批次
+        if len(failed_reqs_ids) > 0:
+            failed_reqs, success_reqs = [], []
+            for req in batch_requests.requests:
+                if req.request_id not in failed_reqs_ids:
+                    success_reqs.append(req)
+                else:
+                    failed_reqs.append(req)
+            batch_requests.requests = success_reqs
+            return failed_reqs
+        else:
+            return []
 
     def free_blocks(self, request_id: int):
         """Free blocks for a request"""

@@ -115,6 +115,7 @@ class LLMEngine:
         self.node_resources = {}
         self.device_map = {}
         self.enable_records = enable_records
+        self.failset = set()
 
         # initialization
         self._init_placement_groups()
@@ -444,7 +445,25 @@ class LLMEngine:
         # logger.info(f"batched_requests: {batched_requests}")
 
         # allocate blocks as needed
-        self.block_manager.allocate_blocks_batched(batched_requests)
+        failed_reqs = self.block_manager.allocate_blocks_batched(batched_requests)
+        if len(failed_reqs) > 0:
+            # 通知各worker释放失败请求的所有KVCache显存占用
+            self.remote_call_all_workers_async(
+                "clear_request_resource_batched", failed_reqs
+            )
+            # 失败请求重新加入等待队列等待处理
+            for req in failed_reqs:
+                new_req = create_request(
+                    prompt=req.prompt,
+                    prompt_token_ids=None,
+                    sampling_params=req.sampling_params,
+                    request_counter=self.request_counter,
+                    tokenizer=self.tokenizer,
+                    arrival_time=req.arrival_time,
+                    request_id=req.request_id
+                )
+                self.scheduler.add_request(new_req)
+                self.failset.add(req.request_id)    # 记录失败请求
 
         # Check if all requests are on GPU (i.e. not swapped out)
         assert self.block_manager.is_all_requests_on_gpu(
