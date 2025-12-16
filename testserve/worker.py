@@ -133,6 +133,8 @@ class ParaWorker:
         self.pp_records = []
         self.pptimer_url = "http://pptime-server:8080"
         self.enable_records = enable_records
+        # Init Resource Profiling
+        self.init_resources = self.resource_inspect()
 
     def ready(self):
         """
@@ -239,12 +241,14 @@ class ParaWorker:
         # Profile memory usage with max_batch_size requests and the total
         # number of tokens equal to max_tokens_per_batch.
         total_gpu_memory = get_gpu_memory()
+        available_gpu_memory = self.init_resources['Free_VRAM'] * (1024 ** 2)
         peak_runtime_memory = (
             total_gpu_memory * 0.01
             + self.model_config.get_model_size_in_bytes(
                 parallel_config=self.parallel_config
             )
         )
+        print(f"Rank[{self.parallel_config.pipeline_parallel_rank}] model_size: {self.model_config.get_model_size_in_bytes(parallel_config=self.parallel_config) / GB:.3f} GB")
         logger.info(f"runtime peak memory: {peak_runtime_memory / GB:.3f} GB")
         logger.info(f"total GPU memory: {total_gpu_memory / GB:.3f} GB")
         block_size_in_bytes = self._get_block_size_in_bytes(
@@ -253,8 +257,12 @@ class ParaWorker:
         logger.info(
             f"kv cache size for one token: {block_size_in_bytes / block_size / MB:.3f} MB"
         )
+        # num_gpu_blocks = int(
+        #     (total_gpu_memory * gpu_memory_utilization - peak_runtime_memory)
+        #     // block_size_in_bytes
+        # )
         num_gpu_blocks = int(
-            (total_gpu_memory * gpu_memory_utilization - peak_runtime_memory)
+            (available_gpu_memory * gpu_memory_utilization - peak_runtime_memory)
             // block_size_in_bytes
         )
         num_cpu_blocks = int(cpu_swap_space // block_size_in_bytes)
@@ -267,7 +275,11 @@ class ParaWorker:
         # the model initialization and profiling.
         set_random_seed(self.model_config.seed)
         # return num_gpu_blocks, num_cpu_blocks
-        return 100, 100
+        return {
+            'node_id': ray.get_runtime_context().get_node_id(),
+            'num_gpu_blocks': num_gpu_blocks,
+            'num_cpu_blocks': 1
+        }
 
     def step(
         self,

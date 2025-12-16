@@ -317,7 +317,24 @@ class LLMEngine:
         #         self.cache_config.cpu_swap_space,
         #     )
         # )
-        num_gpu_blocks, num_cpu_blocks = (3000, 1)
+        futures = self.remote_call_all_workers_async(
+            "_profile_num_available_blocks",
+            self.cache_config.block_size,
+            self.cache_config.gpu_memory_utilization,
+            self.cache_config.cpu_swap_space,
+        )
+        outlogs = "[GPU Blocks] "
+        gpu_blocks = []
+        for future in futures:
+            result = ray.get(future)
+            node_name = self.device_map[result['node_id']]
+            gpu_block = result['num_gpu_blocks']
+            gpu_blocks.append(gpu_block)
+            outlogs += f"{node_name}:{gpu_block} \t"
+        print(outlogs)
+        num_gpu_blocks = min(gpu_blocks)
+        num_cpu_blocks = 1
+        # num_gpu_blocks, num_cpu_blocks = (3000, 1)
         print(f"num_gpu_blocks: {num_gpu_blocks}, num_cpu_blocks: {num_cpu_blocks}")
         self.remote_call_all_workers(
             "init_kvcache_and_swap", num_gpu_blocks, num_cpu_blocks
@@ -453,16 +470,20 @@ class LLMEngine:
             )
             # 失败请求重新加入等待队列等待处理
             for req in failed_reqs:
-                new_req = create_request(
-                    prompt=req.prompt,
-                    prompt_token_ids=None,
-                    sampling_params=req.sampling_params,
-                    request_counter=self.request_counter,
-                    tokenizer=self.tokenizer,
-                    arrival_time=req.arrival_time,
-                    request_id=req.request_id
-                )
-                self.scheduler.add_request(new_req)
+                # new_req = create_request(
+                #     prompt=req.prompt,
+                #     prompt_token_ids=None,
+                #     sampling_params=req.sampling_params,
+                #     request_counter=self.request_counter,
+                #     tokenizer=self.tokenizer,
+                #     arrival_time=req.arrival_time,
+                #     request_id=req.request_id
+                # )
+                req.generated_tokens = []
+                req.generated_token_ids = []
+                req.is_finished = False
+                req.is_running = False
+                self.scheduler.add_request(req)
                 self.failset.add(req.request_id)    # 记录失败请求
 
         # Check if all requests are on GPU (i.e. not swapped out)
