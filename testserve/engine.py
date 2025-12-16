@@ -88,7 +88,8 @@ class LLMEngine:
         cache_config: CacheConfig,
         sched_config: SchedConfig,
         enable_records: bool,
-        deployments: List[str]
+        deployments: List[str],
+        pre_benchmark_mode: bool
     ):
         self.model_config = model_config
         self.parallel_config = parallel_config
@@ -115,6 +116,7 @@ class LLMEngine:
         self.node_resources = {}
         self.device_map = {}
         self.enable_records = enable_records
+        self.pre_benchmark_mode = pre_benchmark_mode
         self.failset = set()
 
         # initialization
@@ -294,7 +296,8 @@ class LLMEngine:
                     parallel_config=tmp_parallel_config,
                     # pipeline_parallel_id=self.pp_id,
                     # tensor_parallel_id=tp_id,
-                    enable_records=self.enable_records
+                    enable_records=self.enable_records,
+                    pre_benchmark_mode=self.pre_benchmark_mode
                 )
                 workers.append(worker)
                 init_handlers.append(worker.ready.remote())
@@ -409,6 +412,15 @@ class LLMEngine:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(all_records)
+        print(f"PP_Gantte saved to {filename}")
+
+    def collect_prebenchmarks(self):
+        res = []
+        futures = self.remote_call_all_workers_async("get_prebenchmarks")
+        for fut in futures:
+            reslut = ray.get(fut)
+            res.append(reslut)
+        return res
 
     def add_request(
         self,

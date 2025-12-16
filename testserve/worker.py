@@ -92,7 +92,8 @@ class ParaWorker:
         parallel_config: ParallelConfig = ParallelConfig(),
         tensor_parallel_id: List[int] = None,
         pipeline_parallel_id: List[int] = None,
-        enable_records: bool = False
+        enable_records: bool = False,
+        pre_benchmark_mode: bool = False
     ) -> None:
         self.model = None
         self.model_config = model_config
@@ -133,6 +134,8 @@ class ParaWorker:
         self.pp_records = []
         self.pptimer_url = "http://pptime-server:8080"
         self.enable_records = enable_records
+        self.pre_benchmark_mode = pre_benchmark_mode
+        self.prebenchmarks = []
         # Init Resource Profiling
         self.init_resources = self.resource_inspect()
 
@@ -146,6 +149,9 @@ class ParaWorker:
 
     def toggle_record(self, isenable: bool):
         self.enable_records = isenable
+
+    def get_prebenchmarks(self):
+        return self.prebenchmarks
 
     def resource_inspect(self):
         node_id = ray.get_runtime_context().get_node_id()
@@ -248,7 +254,7 @@ class ParaWorker:
                 parallel_config=self.parallel_config
             )
         )
-        print(f"Rank[{self.parallel_config.pipeline_parallel_rank}] model_size: {self.model_config.get_model_size_in_bytes(parallel_config=self.parallel_config) / GB:.3f} GB")
+        # print(f"Rank[{self.parallel_config.pipeline_parallel_rank}] model_size: {self.model_config.get_model_size_in_bytes(parallel_config=self.parallel_config) / GB:.3f} GB")
         logger.info(f"runtime peak memory: {peak_runtime_memory / GB:.3f} GB")
         logger.info(f"total GPU memory: {total_gpu_memory / GB:.3f} GB")
         block_size_in_bytes = self._get_block_size_in_bytes(
@@ -344,6 +350,9 @@ class ParaWorker:
         )
         self.execution_time += time.time() - forward_start
         
+        if self.pre_benchmark_mode:
+            self.prebenchmarks.append(time.time() - forward_start)
+
         if self.enable_records:
             self.record(
                 'end',

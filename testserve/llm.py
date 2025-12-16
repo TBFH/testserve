@@ -337,7 +337,8 @@ class TestOfflineLLM_BS1:
         num_min_free_blocks_threshold: int = 0,
         num_queues_for_prediction: int = 2,
         use_skip_join: bool = True,
-        enable_records: bool = False
+        enable_records: bool = False,
+        pre_benchmark_mode: bool = False
     ):
         self.model = model
         self.tokenizer = tokenizer
@@ -375,9 +376,11 @@ class TestOfflineLLM_BS1:
             self.cache_config,
             self.sched_config,
             enable_records=enable_records,
-            deployments=deployments
+            deployments=deployments,
+            pre_benchmark_mode=pre_benchmark_mode,
         )
         self.enable_records = enable_records
+        self.pre_benchmark_mode = pre_benchmark_mode
 
     def generate(
         self,
@@ -430,6 +433,10 @@ class TestOfflineLLM_BS1:
             if num_reqs == 0:
                 if self.enable_records:
                     self._collect_all_workers_records()
+                if self.pre_benchmark_mode:
+                    pre_benchmark_data = self._collect_all_workers_prebenchmarks()
+                else:
+                    pre_benchmark_data = None
                 # 重置失败请求数据
                 num_fails = len(self.llm_engine.failset)
                 self.llm_engine.failset.clear()
@@ -441,11 +448,15 @@ class TestOfflineLLM_BS1:
         if use_tqdm:
             pbar.close()
 
-        return finished_requests, num_fails
+        return finished_requests, num_fails, pre_benchmark_data
     
     def _collect_all_workers_records(self):
         time.sleep(2)
         self.llm_engine.collect()
+
+    def _collect_all_workers_prebenchmarks(self):
+        time.sleep(2)
+        return self.llm_engine.collect_prebenchmarks()
 
 class AsyncLLM:
     """A Large Language Model (LLM) for online inference."""
