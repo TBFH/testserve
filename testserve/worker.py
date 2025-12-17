@@ -151,7 +151,9 @@ class ParaWorker:
         self.enable_records = isenable
 
     def get_prebenchmarks(self):
-        return self.prebenchmarks
+        res = copy.deepcopy(self.prebenchmarks)
+        self.prebenchmarks.clear()
+        return res
 
     def resource_inspect(self):
         node_id = ray.get_runtime_context().get_node_id()
