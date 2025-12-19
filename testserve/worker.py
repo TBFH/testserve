@@ -286,7 +286,9 @@ class ParaWorker:
         return {
             'node_id': ray.get_runtime_context().get_node_id(),
             'num_gpu_blocks': num_gpu_blocks,
-            'num_cpu_blocks': 1
+            'num_cpu_blocks': 1,
+            'available_vram': available_gpu_memory,
+            'peak_vram': peak_runtime_memory
         }
 
     def step(

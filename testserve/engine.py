@@ -19,7 +19,7 @@ from testserve.request import (
 from testserve.worker import ParaWorker
 from testserve.tokenizer import get_tokenizer
 from testserve.scheduler import get_scheduler
-from testserve.utils import Counter
+from testserve.utils import Counter, profile_vram, get_gpu_memory, GB, MB
 from testserve.block_manager import BlockManager
 
 # 配置相关环境变量，防止通信问题导致的程序卡死
@@ -183,7 +183,15 @@ class LLMEngine:
             result = ray.get(future)
             node_id = result["NodeID"]
             # print(f'[{node_id}] GPU Device {self.node_resources[node_id]["GPU_Name"]} Allocated VRAM: {allocated_vram:.2f} MiB ------> [Rank {result["Rank"]}] with {result["Num_Layers"]} Layers')
-            print(f'[{node_id}] GPU Device {self.device_map[node_id]} ------> [Rank {result["Rank"]}] with {result["Num_Layers"]} Layers')
+            print(
+                f'[{node_id}] GPU Device {self.device_map[node_id]} ------> [Rank {result["Rank"]}] with {result["Num_Layers"]} Layers'
+            )
+        # if len(self.deployments) > 0:
+        #     device_map_rvt = {v:k for k,v in self.device_map.items()}
+        #     for idx, node in enumerate(self.deployments):
+        #         if node not in device_map_rvt:
+        #             raise RuntimeError(f"Node [{node}] not found in cluster")
+        #         print(f'[{device_map_rvt[node]}] GPU Device {node} ------> [Rank {idx}] with {self.parallel_config.pipeline_distribution[idx]} Layers')
 
     def _init_placement_groups(self):
         if not ray.is_initialized():
@@ -326,14 +334,21 @@ class LLMEngine:
             self.cache_config.gpu_memory_utilization,
             self.cache_config.cpu_swap_space,
         )
-        outlogs = "[GPU Blocks] "
+        outlogs = "[GPU Profiles] "
         gpu_blocks = []
         for future in futures:
             result = ray.get(future)
             node_name = self.device_map[result['node_id']]
             gpu_block = result['num_gpu_blocks']
+            available_vram = result['available_vram']
+            model_vram = result['peak_vram']
+            kvcache_vram = available_vram - model_vram
             gpu_blocks.append(gpu_block)
-            outlogs += f"{node_name}:{gpu_block} \t"
+            outlogs += f" {node_name}: \n"
+            outlogs += f"\t Block Available: {gpu_block} \n"
+            outlogs += f"\t VRAM Available: {(available_vram) / (1024**2)} GB \n"
+            outlogs += f"\t VRAM for Model: {(model_vram) / (1024**2)} GB \n"
+            outlogs += f"\t VRAM for KVCache: {(kvcache_vram) / (1024**2)} GB \n"
         print(outlogs)
         num_gpu_blocks = min(gpu_blocks)
         num_cpu_blocks = 1
@@ -343,6 +358,15 @@ class LLMEngine:
             "init_kvcache_and_swap", num_gpu_blocks, num_cpu_blocks
         )
         return num_gpu_blocks, num_cpu_blocks
+        
+        # available_gpu_memory = profile_vram(self.deployments)
+        # peak_runtime_memory = (
+        #     available_gpu_memory * 0.05
+        #     + self.model_config.get_model_size_in_bytes(
+        #         parallel_config=self.parallel_config
+        #     )
+        # )
+
 
     def remote_call_all_workers(self, func_name: str, *args):
         """
