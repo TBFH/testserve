@@ -22,7 +22,8 @@ logger = init_logger(__name__)
 REPO_ID_SEPARATOR = "--"
 
 # cache - where the converted weights are saved
-default_cache = os.path.join(os.path.expanduser("~"), ".cache", "testserve")
+# default_cache = os.path.join(os.path.expanduser("~"), ".cache", "testserve")
+default_cache = os.path.join("/mnt/Data/austin/hf_models/", ".cache", "testserve")
 # default_cache = os.path.join("/mnt/Data/austin/", ".cache", "fastserve")
 TESTSERVE_CACHE = os.getenv("TESTSERVE_CACHE", default_cache)
 

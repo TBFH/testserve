@@ -334,7 +334,7 @@ class LLMEngine:
             self.cache_config.gpu_memory_utilization,
             self.cache_config.cpu_swap_space,
         )
-        outlogs = "[GPU Profiles] "
+        outlogs = "[GPU Profiles] \n"
         gpu_blocks = []
         for future in futures:
             result = ray.get(future)
@@ -344,11 +344,11 @@ class LLMEngine:
             model_vram = result['peak_vram']
             kvcache_vram = available_vram - model_vram
             gpu_blocks.append(gpu_block)
-            outlogs += f" {node_name}: \n"
+            outlogs += f"{node_name}: \n"
             outlogs += f"\t Block Available: {gpu_block} \n"
-            outlogs += f"\t VRAM Available: {(available_vram) / (1024**2)} GB \n"
-            outlogs += f"\t VRAM for Model: {(model_vram) / (1024**2)} GB \n"
-            outlogs += f"\t VRAM for KVCache: {(kvcache_vram) / (1024**2)} GB \n"
+            outlogs += f"\t VRAM Available: {((available_vram) / (1024**3)):.2f} GB \n"
+            outlogs += f"\t VRAM for Model: {((model_vram) / (1024**3)):.2f} GB \n"
+            outlogs += f"\t VRAM for KVCache: {((kvcache_vram) / (1024**3)):.2f} GB \n"
         print(outlogs)
         num_gpu_blocks = min(gpu_blocks)
         num_cpu_blocks = 1
