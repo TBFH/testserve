@@ -23,11 +23,11 @@ from testserve.utils import Counter, profile_vram, get_gpu_memory, GB, MB
 from testserve.block_manager import BlockManager
 
 # 配置相关环境变量，防止通信问题导致的程序卡死
-# import os
+import os
 # os.environ['NCCL_P2P_DISABLE'] = '1'
 # os.environ['NCCL_IB_DISABLE'] = '1'
 # os.environ['NCCL_SOCKET_IFNAME'] = 'eno4'
-# os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 
 logger = init_logger(__name__)
 
@@ -118,6 +118,8 @@ class LLMEngine:
         self.enable_records = enable_records
         self.pre_benchmark_mode = pre_benchmark_mode
         self.failset = set()
+        self.logs = ""
+        self.min_gpu_blocks = -1
 
         # initialization
         self._init_placement_groups()
@@ -342,15 +344,20 @@ class LLMEngine:
             gpu_block = result['num_gpu_blocks']
             available_vram = result['available_vram']
             model_vram = result['peak_vram']
-            kvcache_vram = available_vram - model_vram
+            kvcache_vram = available_vram * self.cache_config.gpu_memory_utilization - model_vram
             gpu_blocks.append(gpu_block)
             outlogs += f"{node_name}: \n"
             outlogs += f"\t Block Available: {gpu_block} \n"
             outlogs += f"\t VRAM Available: {((available_vram) / (1024**3)):.2f} GB \n"
+            outlogs += f"\t VRAM Utilization Constraint: {self.cache_config.gpu_memory_utilization * 100}% \n"
             outlogs += f"\t VRAM for Model: {((model_vram) / (1024**3)):.2f} GB \n"
             outlogs += f"\t VRAM for KVCache: {((kvcache_vram) / (1024**3)):.2f} GB \n"
         print(outlogs)
+        self.logs += outlogs[:-1]
+        print("gpu_blocks: ", gpu_blocks)
+        gpu_blocks[-1] = int(gpu_blocks[-1] * 0.3)
         num_gpu_blocks = min(gpu_blocks)
+        self.min_gpu_blocks = num_gpu_blocks
         num_cpu_blocks = 1
         # num_gpu_blocks, num_cpu_blocks = (3000, 1)
         print(f"num_gpu_blocks: {num_gpu_blocks}, num_cpu_blocks: {num_cpu_blocks}")
@@ -564,9 +571,9 @@ class LLMEngine:
             # LLaMA: add a space to the front for token begins with SPIECE_UNDERLINE("▁")
             if (self.model_config.hf_config.model_type == "llama"):
                 SPIECE_UNDERLINE = "▁"
-                if generated_tokens_ids != [] and max(generated_tokens_ids) > self.model_config.hf_config.vocab_size:
-                    print('Warning: generated token id exceeds vocab size')
-                    generated_tokens_ids = [min(x, self.model_config.hf_config.vocab_size - 1) for x in generated_tokens_ids]
+                if generated_tokens_ids != [] and (max(generated_tokens_ids) > self.model_config.hf_config.vocab_size or min(generated_tokens_ids) < 0):
+                    print('Warning: generated token id exceeds vocab size', f'generated_tokens_ids: {generated_tokens_ids}')
+                    generated_tokens_ids = [max(0, min(x, self.model_config.hf_config.vocab_size - 1)) for x in generated_tokens_ids]
                 _tokenlist = self.tokenizer.convert_ids_to_tokens(generated_tokens_ids)
                 generated_tokens = []
                 for _token in _tokenlist:

@@ -382,6 +382,12 @@ class TestOfflineLLM_BS1:
         self.enable_records = enable_records
         self.pre_benchmark_mode = pre_benchmark_mode
 
+    def get_profiles(self) -> str:
+        return self.llm_engine.logs
+    
+    def get_gpu_blocks(self) -> int:
+        return self.llm_engine.min_gpu_blocks
+
     def generate(
         self,
         prompts: Optional[Union[List[str], str]] = None,
@@ -475,13 +481,17 @@ class AsyncLLM:
         swap_space: int = 0,
         sched_policy: str = "fcfs",
         max_batch_size: int = 256,
-        max_tokens_per_batch: int = 2048,
+        max_tokens_per_batch: int = 16384,
         profiling_file: str = None,
         use_dummy_weights: bool = False,
         proactive_offloading: bool = True,
         num_min_free_blocks_threshold: int = 0,
         num_queues_for_prediction: int = 2,
         use_skip_join: bool = True,
+        pipeline_distribution: List[int] = [],
+        deployments: List[str] = [],
+        enable_records: bool = False,
+        pre_benchmark_mode: bool = False
     ):
         self.model = model
         self.tokenizer = tokenizer
@@ -495,6 +505,7 @@ class AsyncLLM:
         self.parallel_config = ParallelConfig(
             pipeline_parallel_size=pipeline_parallel_size,
             tensor_parallel_size=tensor_parallel_size,
+            pipeline_distribution=pipeline_distribution,
         )
         self.cache_config = CacheConfig(
             block_size, max_num_blocks_per_req, gpu_memory_utilization, swap_space
@@ -511,12 +522,18 @@ class AsyncLLM:
             num_queues_for_prediction=num_queues_for_prediction,
             use_skip_join=use_skip_join,
         )
+        assert len(deployments) == len(pipeline_distribution), "deployments of all stages to nodes must be specified"
         self.llm_engine = LLMEngine(
             self.model_config,
             self.parallel_config,
             self.cache_config,
             self.sched_config,
+            deployments=deployments,
+            enable_records=enable_records,
+            pre_benchmark_mode=pre_benchmark_mode,
         )
+        self.enable_records = enable_records
+        self.pre_benchmark_mode = pre_benchmark_mode
         # request_id => event
         self.request_events = {}
         # request_id => step_output
@@ -524,6 +541,25 @@ class AsyncLLM:
         self.is_engine_running = False
         self.kicking_request_id: Optional[str] = None
         self.timeout_interval = 1  # seconds
+    
+    def get_profiles(self) -> str:
+        return self.llm_engine.logs
+    
+    def get_gpu_blocks(self) -> int:
+        return self.llm_engine.min_gpu_blocks
+    
+    def collect_all_workers_records(self):
+        time.sleep(2)
+        self.llm_engine.collect()
+
+    def collect_all_workers_prebenchmarks(self):
+        time.sleep(2)
+        return self.llm_engine.collect_prebenchmarks()
+    
+    def get_num_fails(self) -> int:
+        num_fails = len(self.llm_engine.failset)
+        self.llm_engine.failset.clear()
+        return num_fails
 
     async def engine_step(self, kicking_request_id: Optional[str] = None):
         """Kick the engine to process the waiting requests."""
