@@ -23,11 +23,11 @@ from testserve.utils import Counter, profile_vram, get_gpu_memory, GB, MB
 from testserve.block_manager import BlockManager
 
 # 配置相关环境变量，防止通信问题导致的程序卡死
-import os
+# import os
 # os.environ['NCCL_P2P_DISABLE'] = '1'
 # os.environ['NCCL_IB_DISABLE'] = '1'
 # os.environ['NCCL_SOCKET_IFNAME'] = 'eno4'
-os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+# os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 
 logger = init_logger(__name__)
 
