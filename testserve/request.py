@@ -337,7 +337,7 @@ class BatchedRequests:
         assert self.start_time is None, "the batch has already started one iteration"
         # mark first step start time
         for req in self.requests:
-            if req.is_context_stage():
+            if req.is_context_stage() and req.first_step_start == 0.0:
                 req.first_step_start = start_time
         self.start_time = start_time
         self.is_running = True
@@ -356,7 +356,7 @@ class BatchedRequests:
             self.requests, generated_tokens, generated_tokens_ids
         ):
             request.last_step_time = end_time
-            if request.is_context_stage():
+            if request.is_context_stage() and request.first_step_end == 0.0:
                 request.first_step_end = end_time
             request.add_process_time(end_time - self.start_time)
             request.add_generated_token(generated_token, generated_token_id)

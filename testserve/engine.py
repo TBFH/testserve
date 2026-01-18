@@ -355,7 +355,7 @@ class LLMEngine:
         print(outlogs)
         self.logs += outlogs[:-1]
         print("gpu_blocks: ", gpu_blocks)
-        gpu_blocks[-1] = int(gpu_blocks[-1] * 0.3)
+        # gpu_blocks[-1] = int(gpu_blocks[-1] * 0.3)
         num_gpu_blocks = min(gpu_blocks)
         self.min_gpu_blocks = num_gpu_blocks
         num_cpu_blocks = 1
@@ -522,6 +522,8 @@ class LLMEngine:
                 #     arrival_time=req.arrival_time,
                 #     request_id=req.request_id
                 # )
+                req.prompt = req.prompt + ' ' + ' '.join(req.generated_tokens)
+                req.prompt_token_ids += req.generated_token_ids
                 req.generated_tokens = []
                 req.generated_token_ids = []
                 req.is_finished = False

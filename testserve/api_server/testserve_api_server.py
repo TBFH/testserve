@@ -75,6 +75,24 @@ async def generate(request: Request) -> Response:
         return JSONResponse(ret)
 
 
+@app.get("/records")
+async def records():
+    engine.collect_all_workers_records()
+    return {
+        "status": "records done!"
+    }
+
+
+@app.get("/prebenchmarks")
+async def get_prebenchmarks():
+    return engine.collect_all_workers_prebenchmarks()
+
+
+@app.get("/numfails")
+async def get_numfails():
+    return engine.get_num_fails()
+
+
 if __name__ == "__main__":
     # parser = argparse.ArgumentParser()
     # parser.add_argument("--host", type=str, default="localhost")
@@ -105,7 +123,7 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=30320)
     parser.add_argument('-b', '--batch-size', type=int, default=32)
     parser.add_argument('--record', action='store_true', default=False)
-    parser.add_argument('--deployments', type=str, default="['jetson-64g-4', 'jetson-16g-3', 'jetson-16g-8', 'jetson-8g-1']")
+    parser.add_argument('--deployments', type=str, default="['jetson-64g-4', 'jetson-16g-2', 'jetson-16g-8', 'jetson-8g-1']")
     parser.add_argument('--pipeline-distribution', type=str, default=None)
     args = parser.parse_args()
 
@@ -128,11 +146,11 @@ if __name__ == "__main__":
         model=model_path,
         tensor_parallel_size=1,
         pipeline_parallel_size=len(deployments),
-        pipeline_distribution=[10, 6, 5, 3],
+        pipeline_distribution=[6, 6, 6, 6],
         deployments=deployments,
-        gpu_memory_utilization=0.7,
+        gpu_memory_utilization=0.8,
         max_batch_size=args.batch_size,
-        enable_records=False,
+        enable_records=args.record,
         pre_benchmark_mode=False,
     )
 

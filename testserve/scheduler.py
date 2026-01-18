@@ -11,6 +11,8 @@ from testserve.request import Request, BatchedRequests
 from testserve.profiling import ProfilingDatabase
 from testserve.block_manager import BlockManager, BlockLocation
 
+from tqdm import tqdm
+
 logger = init_logger(__name__)
 
 
@@ -105,6 +107,54 @@ class FCFS(Scheduler):
         self.parallel_config = copy.deepcopy(parallel_config)
         self.block_manager = block_manager
 
+        # Process Bars
+        self.pbar_dict = []
+        self.waiting_q_bar = None
+        # self.init_pbars()
+
+    def init_pbars(self):
+        for i in range(len(self.batch_queues)):
+            # 初始化进度条：固定格式，默认颜色
+            pbar = tqdm(
+                total=self.sched_config.max_batch_size,
+                desc=f'Batch_Queue[{i}]',          # 进度条左侧显示对象名称
+                bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt}',
+                position=i+1,         # 固定位置，避免刷屏
+                leave=True,         # 运行结束后保留进度条
+                ncols=100
+            )
+            self.pbar_dict.append(pbar)
+        # Waiting Queue
+        self.waiting_q_bar = tqdm(
+            total=999,
+            desc=f'Waiting_Queue',          # 进度条左侧显示对象名称
+            bar_format='{l_bar}{bar}| num_requests: {n_fmt}',
+            position=0,         # 固定位置，避免刷屏
+            leave=True,         # 运行结束后保留进度条
+            ncols=100
+        )
+
+    def update_pbar(self):
+        COLOR_CODES = {
+            'green': '\033[92m',
+            'reset': '\033[0m',
+        }
+        # 更新等待队列信息
+        self.waiting_q_bar.n = len(self.waiting_queue)
+        self.waiting_q_bar.refresh()
+        # 更新各批次占用率
+        for idx, batch in enumerate(self.batch_queues):
+            tokens_to_cal = batch.get_num_input_tokens()
+            num_req = len(batch)
+            self.pbar_dict[idx].n = num_req
+            if idx == self.cur_index:
+                bar_format = f'{COLOR_CODES["reset"]}{{l_bar}}{COLOR_CODES["green"]}{{bar}}{COLOR_CODES["reset"]}| {{n_fmt}}/{{total_fmt}} [num_tokens: {tokens_to_cal}]'
+            else:
+                bar_format = f'{{l_bar}}{{bar}}| {{n_fmt}}/{{total_fmt}} [num_tokens: {tokens_to_cal}]'
+            self.pbar_dict[idx].bar_format = bar_format
+            self.pbar_dict[idx].refresh()
+
+
     def _check_add_to_cur_batch(self, request: Request) -> bool:
         block_size = self.block_manager.cache_config.block_size
         def get_block_needed(length: int):
@@ -113,9 +163,12 @@ class FCFS(Scheduler):
         all_requests = []
         for batch in self.batch_queues:
             all_requests += batch.requests
+
+        batch_size_target = (len(self.waiting_queue) + len(all_requests) + 1) / self.parallel_config.pipeline_parallel_size
         
         return (
             len(self.batch_queues[self.cur_index]) < self.sched_config.max_batch_size
+            # len(self.batch_queues[self.cur_index]) < min(batch_size_target, self.sched_config.max_batch_size)
         ) and (
             self.batch_queues[self.cur_index].get_num_input_tokens()
             + request.get_num_input_tokens()
@@ -199,6 +252,10 @@ class FCFS(Scheduler):
                     self.waiting_queue.pop(0)
                 else:
                     break
+        
+        # ProcessBar for Debugging All Batches
+        # self.update_pbar()
+        
         return self.batch_queues[self.cur_index]
 
     # Getter functions
