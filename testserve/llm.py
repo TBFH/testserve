@@ -1,11 +1,11 @@
 import time
-from typing import List, Union, Optional
+from typing import List, Union, Optional, AsyncGenerator
 
 import asyncio
 from tqdm import tqdm
 
 from testserve.config import ModelConfig, ParallelConfig, CacheConfig, SchedConfig
-from testserve.engine import LLMEngine
+from testserve.engine import LLMEngine, StepOutput
 from testserve.logger import init_logger
 from testserve.request import Request, SamplingParams
 
@@ -591,7 +591,7 @@ class AsyncLLM:
         prompt: Optional[str] = None,
         prompt_token_ids: Optional[List[int]] = None,
         sampling_params: SamplingParams = SamplingParams(),
-    ) -> Request:
+    ) -> AsyncGenerator[StepOutput, None]:
         """Generate outputs for a single request.
 
         This method is a coroutine. It adds the request into the waiting queue,

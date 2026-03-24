@@ -1,6 +1,7 @@
 import argparse
 import json
-from typing import AsyncGenerator
+from typing import AsyncGenerator, List, Tuple
+import time
 
 from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
@@ -10,6 +11,7 @@ from testserve.llm import AsyncLLM
 from testserve.request import SamplingParams
 from testserve.utils import random_uuid
 from testserve.logger import init_logger
+from testserve.engine import StepOutput
 
 # import ray
 
@@ -60,18 +62,19 @@ async def generate(request: Request) -> Response:
         return StreamingResponse(stream_results(), background=background_tasks)
     else:
         # Non-streaming case
-        final_output = None
+        final_outputs: List[Tuple[StepOutput, float]] = []   # (step_output, timestamp)
         async for step_output in results_generator:
             if await request.is_disconnected():
                 # Abort the request if the client disconnects.
                 await engine.abort(request_id)
                 return Response(status_code=499)
-            final_output = step_output
+            final_outputs.append((step_output, time.time()))
 
-        assert final_output is not None
-        prompt = final_output.prompt
-        text_output = prompt + final_output.request.get_response()
-        ret = {"text": text_output}
+        text_output = prompt + ''.join([step_output[0].new_token for step_output in final_outputs])
+        ret = {
+            "text": text_output,
+            "timestamps": [step_output[1] for step_output in final_outputs]
+        }
         return JSONResponse(ret)
 
 
