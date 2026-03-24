@@ -503,6 +503,8 @@ class AsyncLLM:
             seed=seed,
             use_dummy_weights=use_dummy_weights,
         )
+        if not pipeline_distribution:
+            pipeline_distribution = [int(self.model_config.hf_config.num_hidden_layers // len(deployments))] * len(deployments)
         self.parallel_config = ParallelConfig(
             pipeline_parallel_size=pipeline_parallel_size,
             tensor_parallel_size=tensor_parallel_size,
