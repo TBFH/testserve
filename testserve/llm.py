@@ -369,7 +369,8 @@ class TestOfflineLLM_BS1:
             num_queues_for_prediction=num_queues_for_prediction,
             use_skip_join=use_skip_join,
         )
-        assert len(deployments) == len(pipeline_distribution), "deployments of all stages to nodes must be specified"
+        if deployments and pipeline_distribution:
+            assert len(deployments) == len(pipeline_distribution), "deployments of all stages to nodes must be specified"
         self.llm_engine = LLMEngine(
             self.model_config,
             self.parallel_config,
@@ -477,7 +478,7 @@ class AsyncLLM:
         tensor_parallel_size: int = 1,
         block_size: int = 16,
         max_num_blocks_per_req: int = 256,
-        gpu_memory_utilization: float = 0.90,
+        gpu_memory_utilization: float = 0.8,
         swap_space: int = 0,
         sched_policy: str = "fcfs",
         max_batch_size: int = 256,
@@ -522,7 +523,8 @@ class AsyncLLM:
             num_queues_for_prediction=num_queues_for_prediction,
             use_skip_join=use_skip_join,
         )
-        assert len(deployments) == len(pipeline_distribution), "deployments of all stages to nodes must be specified"
+        if pipeline_distribution:
+            assert len(deployments) == len(pipeline_distribution), "deployments of all stages to nodes must be specified"
         self.llm_engine = LLMEngine(
             self.model_config,
             self.parallel_config,

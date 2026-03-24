@@ -19,7 +19,7 @@ model_path = "/mnt/Data/austin/hf_models/opt-1.3b"
 # model_path = "/mnt/Data/austin/hf_models/Llama-2-7b-chat-hf"
 # model_path = "/mnt/Data/austin/hf_models/Meta-Llama-3-8B-Instruct"
 
-TIMEOUT_KEEP_ALIVE = 5  # seconds.
+TIMEOUT_KEEP_ALIVE = 300  # seconds.
 TIMEOUT_TO_PREVENT_DEADLOCK = 1  # seconds.
 app = FastAPI()
 
@@ -94,63 +94,26 @@ async def get_numfails():
 
 
 if __name__ == "__main__":
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("--host", type=str, default="localhost")
-    # parser.add_argument("--port", type=int, default=30320)
-    # parser.add_argument("--model", type=str, default="/mnt/Data/austin/hf_models/opt-1.3b")
-    # parser.add_argument("--tokenizer", type=str, default=None)
-    # parser.add_argument("--trust-remote-code", action="store_true")
-    # parser.add_argument("--seed", type=int, default=1)
-    # parser.add_argument("--pipeline-parallel-size", type=int, default=4)
-    # parser.add_argument("--tensor-parallel-size", type=int, default=1)
-    # parser.add_argument("--block-size", type=int, default=16)
-    # parser.add_argument("--max-num-blocks-per-req", type=int, default=256)
-    # parser.add_argument("--gpu-memory-utilization", type=float, default=0.9)
-    # parser.add_argument("--swap-space", type=int, default=16)
-    # parser.add_argument("--sched-policy", type=str, default="fcfs")
-    # parser.add_argument("--max-batch-size", type=int, default=256)
-    # parser.add_argument("--max-tokens-per-batch", type=int, default=2048)
-    # parser.add_argument("--profiling-file", type=str, default=None)
-    # parser.add_argument("--use-dummy-weights", action="store_true")
-    # parser.add_argument("--proactive-offloading", action="store_true")
-    # parser.add_argument("--num-min-free-blocks-threshold", type=int, default=0)
-    # parser.add_argument("--num-queues-for-prediction", type=int, default=2)
-    # parser.add_argument("--use-skip-join", action="store_true")
-    # args = parser.parse_args()
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", type=str, default="localhost")
     parser.add_argument("--port", type=int, default=30320)
-    parser.add_argument('-b', '--batch-size', type=int, default=32)
-    parser.add_argument('--record', action='store_true', default=False)
-    parser.add_argument('--deployments', type=str, default="['jetson-64g-4', 'jetson-16g-2', 'jetson-16g-8', 'jetson-8g-1']")
-    parser.add_argument('--pipeline-distribution', type=str, default=None)
+    parser.add_argument('--model', type=str, required=True)
+    parser.add_argument("--max-batch-size", type=int, default=128)
+    parser.add_argument('--deployments', type=str, required=True)
+    # parser.add_argument('--pipeline-distribution', type=str, default=None)
     args = parser.parse_args()
 
     deployments = eval(args.deployments)
 
-    # ray.init()
-    # llm = TestOfflineLLM_BS1(
-    #     model=model_path,
-    #     tensor_parallel_size=1,
-    #     pipeline_parallel_size=pp_size,
-    #     pipeline_distribution=[llm_config.num_hidden_layers // pp_size for _ in range(pp_size)],
-    #     deployments=deployments,
-    #     gpu_memory_utilization=0.7,
-    #     max_batch_size=batch_size,
-    #     enable_records=False,
-    #     pre_benchmark_mode=True
-    # )
-
     engine = AsyncLLM(
-        model=model_path,
+        model=args.model,
         tensor_parallel_size=1,
         pipeline_parallel_size=len(deployments),
-        pipeline_distribution=[6, 6, 6, 6],
+        # pipeline_distribution=[6, 6, 6, 6],
         deployments=deployments,
         gpu_memory_utilization=0.8,
-        max_batch_size=args.batch_size,
-        enable_records=args.record,
+        max_batch_size=args.max_batch_size,
+        enable_records=False,
         pre_benchmark_mode=False,
     )
 
