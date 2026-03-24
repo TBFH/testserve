@@ -1,6 +1,6 @@
 import time
 import copy
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import asyncio
 
 import ray
@@ -19,7 +19,7 @@ from testserve.request import (
 from testserve.worker import ParaWorker
 from testserve.tokenizer import get_tokenizer
 from testserve.scheduler import get_scheduler
-from testserve.utils import Counter, profile_vram, get_gpu_memory, GB, MB
+from testserve.utils import Counter, profile_vram, get_gpu_memory, GB, MB, profile_powers
 from testserve.block_manager import BlockManager
 
 # 配置相关环境变量，防止通信问题导致的程序卡死
@@ -616,6 +616,14 @@ class LLMEngine:
         self.scheduler.post_process()
 
         return step_outputs, finished_reqs
+    
+    def summary_all(self, start: float, end: float) -> Dict[str, Any]:
+        return profile_powers(
+            devices=self.deployments,
+            start=start,
+            end=end,
+            step=1
+        )
 
     def get_num_unfinished_requests(self) -> int:
         return self.scheduler.get_total_num_requests()

@@ -1,5 +1,5 @@
 import time
-from typing import List, Union, Optional, AsyncGenerator
+from typing import List, Union, Optional, AsyncGenerator, Dict, Any
 
 import asyncio
 from tqdm import tqdm
@@ -564,6 +564,9 @@ class AsyncLLM:
         num_fails = len(self.llm_engine.failset)
         self.llm_engine.failset.clear()
         return num_fails
+    
+    def summary(self, start: float, end: float) -> Dict[str, Any]:
+        return self.llm_engine.summary_all(start, end)
 
     async def engine_step(self, kicking_request_id: Optional[str] = None):
         """Kick the engine to process the waiting requests."""

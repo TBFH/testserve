@@ -78,6 +78,16 @@ async def generate(request: Request) -> Response:
         return JSONResponse(ret)
 
 
+@app.post("/summary")
+async def summary(request: Request) -> Response:
+    request_dict = await request.json()
+    start = request_dict["start"]
+    end = request_dict["end"]
+    summarys = engine.summary(start, end)
+    summarys.pop('pc-3090-1', None)
+    return JSONResponse(summarys)
+
+
 @app.get("/records")
 async def records():
     engine.collect_all_workers_records()
