@@ -308,6 +308,8 @@ def profile_powers(devices, start, end, step, plot_dir=None, avg=True):
     pc_query = f'DCGM_FI_DEV_POWER_USAGE{"{"}instance=~"({"|".join(devices_pc)})", gpu=~"(0|1)"{"}"}'
     end = int(end)
     start = int(start)
+    if end - start >= 30:
+        start -= 10
     step = step    # 表示每多少秒获取一次数据
     # 获取功耗数据
     jetson_fetched = grafana_query_range(jetson_query, start, end, step)

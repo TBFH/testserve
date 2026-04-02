@@ -124,7 +124,7 @@ if __name__ == "__main__":
         pipeline_parallel_size=len(deployments),
         # pipeline_distribution=[6, 6, 6, 6],
         deployments=deployments,
-        gpu_memory_utilization=0.8,
+        gpu_memory_utilization=0.6,
         max_batch_size=args.max_batch_size,
         enable_records=False,
         pre_benchmark_mode=False,
